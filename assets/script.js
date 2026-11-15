@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("footer-alamat").textContent = `📍 ${jmsData.profil.alamat}`;
   document.getElementById("footer-telp").textContent = `📞 WhatsApp: ${jmsData.profil.whatsapp}`;
   
-  const waLink = `https://wa.me/${jmsData.profil.whatsapp}?text=Halo%20Admin%20JMS,%20saya%20ingin%20konsultasi%20mengenai%20servis%20motor.`;
+  const targetWhatsApp = `https://wa.me/6281286276830?text=Halo%20Admin%20JMS,%20saya%20ingin%20konsultasi...`;
   document.getElementById("nav-cta-wa").setAttribute("href", waLink);
 
   // 2. Render Status Slot

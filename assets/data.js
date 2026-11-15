@@ -5,7 +5,7 @@ const jmsData = {
     whatsapp: "6281286276830",
     whatsappList: ["0812-8627-6830", "0896-7582-7820"],
     alamat: "Jl. Jabal Mina Raya No.18 Kelapa Dua, Kecamatan Kelapa Dua, Kabupaten Tangerang, Banten 15810",
-    jamOperasional: "Senin - Sabtu: 09.00 - 18.00 WIB"
+    jamOperasional: "Senin - Minggu: 15.00 - 02.00 WIB"
   },
   
   statusBooking: {
