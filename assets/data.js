@@ -86,10 +86,6 @@ const jmsData = {
     {
       url: "images/jms9.jpg",
       judul: "Pengerjaan Tune-up Berkala Mesin"
-    },
-    {
-      url: "images/jms10.jpg",
-      judul: "Inspeksi Pengecekan Mesin BMW X3"
-    },
+    }
   ]
 };
