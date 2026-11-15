@@ -1,10 +1,12 @@
-// data.js - Pusat Kontrol Informasi Bengkel JMS
+// data.js - Pusat Kontrol Informasi Bengkel JMS (Jamal Motor Sport)
 const jmsData = {
   profil: {
     nama: "JMS (Jamal Motor Sport)",
-    tagline: "Spesialis Perawatan, Tune-Up & Modifikasi Motor Performa Tinggi",
-    whatsapp: "6281234567890", // Ganti nomor WhatsApp admin (Awali dengan 62 tanpa +)
-    alamat: "Jl. Otomotif Raya No. 45, Jakarta Selatan",
+    tagline: "Spesialis Perawatan, Tune-Up & Modifikasi Mesin Kendaraan Performa Tinggi",
+    // Menggunakan nomor WhatsApp pertama sebagai kontak utama/link cepat
+    whatsapp: "6281286276830", 
+    whatsappList: ["0812-8627-6830", "0896-7582-7820"],
+    alamat: "Jl. Jabal Mina Raya No.18 Kelapa Dua, Kecamatan Kelapa Dua, Kabupaten Tangerang, Banten 15810",
     jamOperasional: "Senin - Sabtu: 09.00 - 18.00 WIB"
   },
   
@@ -14,14 +16,14 @@ const jmsData = {
     keteranganSlot: "🟢 Status Hari Ini: Buka | 2 Slot Antrian Kosong Tersedia"
   },
 
-  // Daftar Layanan & Harga (Sangat mudah ditambah/diedit di sini)
+  // Daftar Layanan & Harga
   layanan: [
     {
       id: "tuneup",
-      nama: "Tune-Up Injeksi & Karburator",
+      nama: "Tune-Up Mesin & Injeksi",
       harga: "Rp 75.000",
       durasi: "45 Menit",
-      deskripsi: "Pembersihan throttle body/karburator, cek busi, setel klep presisi, dan scan ECU.",
+      deskripsi: "Pembersihan komponen bakar, cek busi, setel klep presisi, dan diagnostik optimal.",
       kategori: "Servis Ringan"
     },
     {
@@ -29,56 +31,56 @@ const jmsData = {
       nama: "Ganti Oli & Perawatan Rutin",
       harga: "Rp 35.000 (Jasa)",
       durasi: "15 Menit",
-      deskripsi: "Penggantian oli mesin & gardan profesional dengan pelumas original pilihan terbaik.",
+      deskripsi: "Penggantian oli mesin profesional dengan pelumas original pilihan terbaik.",
       kategori: "Perawatan Rutin"
     },
     {
-      id: "cvt",
-      nama: "Servis CVT Matic / Kampas Ganda",
-      harga: "Rp 60.000",
-      durasi: "30 Menit",
-      deskripsi: "Pembersihan mangkok ganda, roller, v-belt checking, dan pelumasan CVT anti-gredek.",
-      kategori: "Servis CVT"
-    },
-    {
-      id: "boredom",
-      nama: "Upgrade Bore Up & Porting Polish",
-      harga: "Mulai Rp 250.000",
-      durasi: "1-2 Hari",
-      deskripsi: "Optimalisasi lubang intake/exhaust dan peningkatan kapasitas silinder untuk akselerasi maksimal.",
-      kategori: "Modifikasi Mesin"
+      id: "ac-diagnostik",
+      nama: "Pengecekan & Servis AC / Sistem Pendingin",
+      harga: "Mulai Rp 100.000",
+      durasi: "45-60 Menit",
+      deskripsi: "Manifold gauge testing, cek tekanan freon, dan perbaikan sistem pendingin.",
+      kategori: "Kaki-Kaki & AC"
     },
     {
       id: "overhaul",
       nama: "Overhaul / Turun Mesin Total",
       harga: "Mulai Rp 350.000",
       durasi: "2-3 Hari",
-      deskripsi: "Pengecekan total komponen silinder, piston, kruk as, stang seher, dan kopling.",
+      deskripsi: "Pengecekan total komponen silinder, piston, kruk as, timing belt, dan blok mesin.",
       kategori: "Servis Berat"
-    },
-    {
-      id: "dyno",
-      nama: "Dyno Test & Mapping ECU",
-      harga: "Rp 150.000",
-      durasi: "45 Menit",
-      deskripsi: "Pengujian tenaga kuda (HP) & torsi presisi serta tuning AFR (Air-Fuel Ratio) optimal.",
-      kategori: "Tuning Performa"
     }
   ],
 
-  // Galeri Foto Bengkel (Ganti URL atau tambahkan foto baru dengan mudah)
+  // Galeri Foto Dokumentasi Bengkel JMS (Sesuai foto yang Anda unggah)
   galeri: [
     {
-      url: "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80",
-      judul: "Area Paddock & Pit Servis Utama"
+      url: "jms1.jpg",
+      judul: "Pengerjaan & Pembersihan Ruang Mesin"
     },
     {
-      url: "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80",
-      judul: "Pengecekan Presisi Mesin Sportbike"
+      url: "jms2.jpg",
+      judul: "Komponen Blok Mesin & Kruk As Presisi"
     },
     {
-      url: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80",
-      judul: "Perawatan Motor Matic & Harian"
+      url: "jms3.jpg",
+      judul: "Pengecekan Timing Belt & Komponen Internal"
+    },
+    {
+      url: "jms4.jpg",
+      judul: "Suasana Pit Servis & Penanganan Kendaraan"
+    },
+    {
+      url: "jms5.jpg",
+      judul: "Kalibrasi & Pengecekan Sistem AC / Tekanan"
+    },
+    {
+      url: "jms6.jpg",
+      judul: "Inspeksi Silinder & Pengecekan Detail Mesin"
+    },
+    {
+      url: "jms7.jpg",
+      judul: "Proses Servis Malam di Paddock JMS"
     }
   ]
 };
