@@ -9,10 +9,11 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("nav-nama-bengkel").textContent = jmsData.profil.nama;
   document.getElementById("hero-tagline").textContent = jmsData.profil.tagline;
   document.getElementById("footer-alamat").textContent = `📍 ${jmsData.profil.alamat}`;
-  document.getElementById("footer-telp").textContent = `📞 WhatsApp: ${jmsData.profil.whatsapp}`;
+  document.getElementById("footer-telp").textContent = `📞 WhatsApp: ${jmsData.profil.whatsappList.join(" / ")}`;
   
-  const targetWhatsApp = `https://wa.me/6281286276830?text=Halo%20Admin%20JMS,%20saya%20ingin%20konsultasi...`;
-  document.getElementById("nav-cta-wa").setAttribute("href", waLink);
+  // Perbaikan variabel waLink navbar
+  const navWaUrl = `https://wa.me/${jmsData.profil.whatsapp}?text=Halo%20Admin%20JMS,%20saya%20ingin%20konsultasi...`;
+  document.getElementById("nav-cta-wa").setAttribute("href", navWaUrl);
 
   // 2. Render Status Slot
   const statusEl = document.getElementById("status-slot");
@@ -42,7 +43,6 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `).join('');
 
-    // Masukkan opsi pilihan ke dalam dropdown booking form
     selectLayanan.innerHTML = jmsData.layanan.map(item => `
       <option value="${item.nama} (${item.harga})">${item.nama} - ${item.harga}</option>
     `).join('');

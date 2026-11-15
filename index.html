@@ -40,26 +40,26 @@
     </div>
   </header>
 
-  <!-- Hero Section -->
-  <section class="relative overflow-hidden py-20 lg:py-32 border-b border-slate-900">
-    <section class="relative overflow-hidden py-24 lg:py-36 border-b border-slate-900 bg-cover bg-center bg-no-repeat" style="background-image: url('images/jms-bg.jpg');">
+  <!-- Hero Section dengan Background Mural -->
+  <section class="relative overflow-hidden py-24 lg:py-36 border-b border-slate-900 bg-cover bg-center bg-no-repeat" style="background-image: url('images/jms-bg.jpg');">
+    <div class="absolute inset-0 bg-slate-950/85 backdrop-blur-[2px]"></div>
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
       <div class="max-w-3xl">
         <!-- Status Banner -->
-        <div id="status-slot" class="inline-flex items-center bg-slate-900 border border-slate-800 rounded-full px-4 py-1.5 text-xs font-semibold mb-6 shadow-inner text-slate-300">
+        <div id="status-slot" class="inline-flex items-center bg-slate-900/90 border border-slate-800 rounded-full px-4 py-1.5 text-xs font-semibold mb-6 shadow-inner text-slate-300">
           <!-- Dinamis dari script.js -->
         </div>
-        <h1 id="hero-tagline" class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
+        <h1 id="hero-tagline" class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight drop-shadow-md">
           Spesialis Perawatan, Tune-Up & Modifikasi Motor Performa Tinggi
         </h1>
-        <p class="text-lg text-slate-400 mb-8 leading-relaxed">
+        <p class="text-lg text-slate-300 mb-8 leading-relaxed drop-shadow">
           Ditangani oleh mekanik berpengalaman profesional dengan peralatan diagnostik modern. Menjaga tarikan motor Anda selalu bertenaga, responsif, dan siap harian maupun balap.
         </p>
         <div class="flex flex-col sm:flex-row gap-4">
-          <a href="#kalkulator" class="bg-red-600 hover:bg-red-700 text-white text-center font-bold px-8 py-4 rounded-xl shadow-xl shadow-red-600/20 transition-all">
+          <a href="#kalkulator" class="bg-red-600 hover:bg-red-700 text-white text-center font-bold px-8 py-4 rounded-xl shadow-xl shadow-red-600/30 transition-all">
             🛠️ Booking Servis Sekarang
           </a>
-          <a href="#layanan" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-center font-bold px-8 py-4 rounded-xl transition-all">
+          <a href="#layanan" class="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200 text-center font-bold px-8 py-4 rounded-xl transition-all">
             Lihat Daftar Harga
           </a>
         </div>
@@ -75,7 +75,6 @@
         <h2 class="text-3xl font-extrabold text-white mt-3 mb-4">Layanan & Harga Transparan</h2>
         <p class="text-slate-400 text-sm">Semua pengerjaan dijamin bergaransi dengan standar kualitas tinggi untuk kenyamanan berkendara Anda.</p>
       </div>
-      <!-- Container Layanan Dinamis -->
       <div id="daftar-layanan" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Dirender otomatis oleh script.js -->
       </div>
@@ -132,7 +131,6 @@
         <h2 class="text-3xl font-extrabold text-white mt-3 mb-4">Galeri Aktivitas JMS</h2>
         <p class="text-slate-400 text-sm">Suasana pit servis, penanganan mesin, dan hasil racikan performa di bengkel kami.</p>
       </div>
-      <!-- Container Galeri Dinamis -->
       <div id="galeri-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Dirender otomatis oleh script.js -->
       </div>
@@ -154,14 +152,14 @@
       <div>
         <h4 class="font-bold text-white text-base mb-4">Jam Operasional Bengkel</h4>
         <ul class="text-slate-400 text-sm space-y-2" id="footer-jam">
-          <li>Senin - Sabtu: 09.00 - 18.00 WIB</li>
-          <li>Minggu / Hari Libur: Janji Temu Khusus</li>
+          <li>Senin - Minggu: 15.00 - 02.00 WIB</li>
+          <li>Hari Libur Tetap Buka</li>
         </ul>
       </div>
       <div>
         <h4 class="font-bold text-white text-base mb-4">Lokasi & Kontak</h4>
-        <p class="text-slate-400 text-sm mb-2" id="footer-alamat">📍 Jl. Otomotif Raya No. 45, Jakarta Selatan</p>
-        <p class="text-slate-400 text-sm" id="footer-telp">📞 WhatsApp: 0812-3456-7890</p>
+        <p class="text-slate-400 text-sm mb-2" id="footer-alamat">📍 Memuat alamat...</p>
+        <p class="text-slate-400 text-sm" id="footer-telp">📞 Memuat kontak...</p>
       </div>
     </div>
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-slate-800/60 text-center text-xs text-slate-500">
@@ -169,7 +167,7 @@
     </div>
   </footer>
 
-  <!-- Link to External Logic Scripts -->
+  <!-- Link Script (Pastikan folder assets/ ada atau sesuaikan jika di root) -->
   <script src="assets/data.js"></script>
   <script src="assets/script.js"></script>
 </body>
