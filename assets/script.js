@@ -11,7 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("footer-alamat").textContent = `📍 ${jmsData.profil.alamat}`;
   document.getElementById("footer-telp").textContent = `📞 WhatsApp: ${jmsData.profil.whatsappList.join(" / ")}`;
   
-  // Perbaikan variabel waLink navbar
   const navWaUrl = `https://wa.me/${jmsData.profil.whatsapp}?text=Halo%20Admin%20JMS,%20saya%20ingin%20konsultasi...`;
   document.getElementById("nav-cta-wa").setAttribute("href", navWaUrl);
 
@@ -21,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     statusEl.innerHTML = jmsData.statusBooking.keteranganSlot;
   }
 
-  // 3. Render Daftar Layanan di HTML
+  // 3. Render Daftar Layanan di HTML & Dropdown Tanpa Harga + Opsi Lain-Lain
   const layananContainer = document.getElementById("daftar-layanan");
   const selectLayanan = document.getElementById("pilihan-layanan");
 
@@ -43,9 +42,14 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `).join('');
 
-    selectLayanan.innerHTML = jmsData.layanan.map(item => `
-      <option value="${item.nama} (${item.harga})">${item.nama} - ${item.harga}</option>
-    `).join('');
+    // Dropdown tanpa harga + opsi Lain-Lain
+    selectLayanan.innerHTML = `
+      <option value="" disabled selected>-- Pilih Jenis Layanan --</option>
+      ${jmsData.layanan.map(item => `
+        <option value="${item.nama}">${item.nama}</option>
+      `).join('')}
+      <option value="Lain-Lain / Konsultasi Khusus">Lain-Lain / Konsultasi Khusus</option>
+    `;
   }
 
   // 4. Render Galeri Foto
@@ -67,31 +71,14 @@ document.addEventListener("DOMContentLoaded", () => {
     bookingForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const nama = document.getElementById("nama-pelanggan").value;
-      const motor = document.getElementById("motor-pelanggan").value;
+      const mobil = document.getElementById("mobil-pelanggan").value;
       const layanan = document.getElementById("pilihan-layanan").value;
       const catatan = document.getElementById("catatan-pelanggan").value || "Tidak ada catatan khusus.";
 
-      const pesan = `Halo Admin JMS,%0D%0A%0D%0ASaya ingin melakukan booking servis dengan detail berikut:%0D%0A- *Nama*: ${nama}%0D%0A- *Motor / Plat*: ${motor}%0D%0A- *Layanan*: ${layanan}%0D%0A- *Catatan*: ${catatan}%0D%0A%0D%0AMohon konfirmasi ketersediaan slotnya. Terima kasih!`;
+      const pesan = `Halo Admin JMS,%0D%0A%0D%0ASaya ingin melakukan booking servis dengan detail berikut:%0D%0A- *Nama*: ${nama}%0D%0A- *Motor / Plat*: ${mobil}%0D%0A- *Layanan*: ${layanan}%0D%0A- *Catatan*: ${catatan}%0D%0A%0D%0AMohon konfirmasi ketersediaan slotnya. Terima kasih!`;
       
       const targetWhatsApp = `https://wa.me/${jmsData.profil.whatsapp}?text=${pesan}`;
       window.open(targetWhatsApp, '_blank');
     });
-  }
-  // Background Slideshow Otomatis untuk Hero Section
-  const heroSection = document.getElementById("hero-section");
-  if (heroSection) {
-    const bgImages = [
-      "images/1794759372257.jpg",
-      "images/1794759372275.jpg"
-    ];
-    let currentIndex = 0;
-
-    // Set background awal dengan transisi halus
-    heroSection.style.transition = "background-image 1s ease-in-out";
-
-    setInterval(() => {
-      currentIndex = (currentIndex + 1) % bgImages.length;
-      heroSection.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url('${bgImages[currentIndex]}')`;
-    }, 5000); // Berganti setiap 5 detik
   }
 });
