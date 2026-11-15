@@ -1,22 +1,18 @@
-// data.js - Pusat Kontrol Informasi Bengkel JMS (Jamal Motor Sport)
 const jmsData = {
   profil: {
     nama: "JMS (Jamal Motor Sport)",
     tagline: "Spesialis Perawatan, Tune-Up & Modifikasi Mesin Kendaraan Performa Tinggi",
-    // Menggunakan nomor WhatsApp pertama sebagai kontak utama/link cepat
-    whatsapp: "6281286276830", 
+    whatsapp: "6281286276830",
     whatsappList: ["0812-8627-6830", "0896-7582-7820"],
     alamat: "Jl. Jabal Mina Raya No.18 Kelapa Dua, Kecamatan Kelapa Dua, Kabupaten Tangerang, Banten 15810",
     jamOperasional: "Senin - Sabtu: 09.00 - 18.00 WIB"
   },
   
-  // Status Ketersediaan Slot Bengkel Hari Ini
   statusBooking: {
     bukaHariIni: true,
     keteranganSlot: "🟢 Status Hari Ini: Buka | 2 Slot Antrian Kosong Tersedia"
   },
 
-  // Daftar Layanan & Harga
   layanan: [
     {
       id: "tuneup",
@@ -52,34 +48,38 @@ const jmsData = {
     }
   ],
 
-  // Galeri Foto Dokumentasi Bengkel JMS (Sesuai foto yang Anda unggah)
+  // Path gambar disesuaikan dengan folder images/
   galeri: [
     {
-      url: "jms1.jpg",
+      url: "images/jms-bg.jpg",
+      judul: "Corner & Mural Resmi JMS Workshop"
+    },
+    {
+      url: "images/jms1.jpg",
       judul: "Pengerjaan & Pembersihan Ruang Mesin"
     },
     {
-      url: "jms2.jpg",
+      url: "images/jms2.jpg",
       judul: "Komponen Blok Mesin & Kruk As Presisi"
     },
     {
-      url: "jms3.jpg",
+      url: "images/jms3.jpg",
       judul: "Pengecekan Timing Belt & Komponen Internal"
     },
     {
-      url: "jms4.jpg",
+      url: "images/jms4.jpg",
       judul: "Suasana Pit Servis & Penanganan Kendaraan"
     },
     {
-      url: "jms5.jpg",
+      url: "images/jms5.jpg",
       judul: "Kalibrasi & Pengecekan Sistem AC / Tekanan"
     },
     {
-      url: "jms6.jpg",
+      url: "images/jms6.jpg",
       judul: "Inspeksi Silinder & Pengecekan Detail Mesin"
     },
     {
-      url: "jms7.jpg",
+      url: "images/jms7.jpg",
       judul: "Proses Servis Malam di Paddock JMS"
     }
   ]
