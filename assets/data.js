@@ -52,8 +52,8 @@ const jmsData = {
   // Path gambar disesuaikan dari sudut pandang index.html (di root)
   galeri: [
     {
-      url: "images/1794759372257.jpg",
-      judul: "Corner & Mural Resmi JMS Workshop"
+      url: "images/jms8.jpg",
+      judul: "Pengecekan BMW F30"
     },
     {
       url: "images/jms1.jpg",
@@ -82,6 +82,14 @@ const jmsData = {
     {
       url: "images/jms7.jpg",
       judul: "Proses Servis Malam di Paddock JMS"
-    }
+    },
+    {
+      url: "images/jms9.jpg",
+      judul: "Pengerjaan Tune-up Berkala Mesin"
+    },
+    {
+      url: "images/jms10.jpg",
+      judul: "Inspeksi Pengecekan Mesin BMW X3"
+    },
   ]
 };
