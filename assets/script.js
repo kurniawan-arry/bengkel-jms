@@ -77,4 +77,21 @@ document.addEventListener("DOMContentLoaded", () => {
       window.open(targetWhatsApp, '_blank');
     });
   }
+  // Background Slideshow Otomatis untuk Hero Section
+  const heroSection = document.getElementById("hero-section");
+  if (heroSection) {
+    const bgImages = [
+      "images/1794759372257.jpg",
+      "images/1794759372275.jpg"
+    ];
+    let currentIndex = 0;
+
+    // Set background awal dengan transisi halus
+    heroSection.style.transition = "background-image 1s ease-in-out";
+
+    setInterval(() => {
+      currentIndex = (currentIndex + 1) % bgImages.length;
+      heroSection.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url('${bgImages[currentIndex]}')`;
+    }, 5000); // Berganti setiap 5 detik
+  }
 });

@@ -48,38 +48,38 @@ const jmsData = {
     }
   ],
 
-  // Path gambar disesuaikan dengan folder images/
+  // Path gambar menggunakan '../images/' karena file data.js ada di dalam folder assets/
   galeri: [
     {
-      url: "images/jms-bg.jpg",
+      url: "../images/jms-bg.jpg",
       judul: "Corner & Mural Resmi JMS Workshop"
     },
     {
-      url: "images/jms1.jpg",
+      url: "../images/jms1.jpg",
       judul: "Pengerjaan & Pembersihan Ruang Mesin"
     },
     {
-      url: "images/jms2.jpg",
+      url: "../images/jms2.jpg",
       judul: "Komponen Blok Mesin & Kruk As Presisi"
     },
     {
-      url: "images/jms3.jpg",
+      url: "../images/jms3.jpg",
       judul: "Pengecekan Timing Belt & Komponen Internal"
     },
     {
-      url: "images/jms4.jpg",
+      url: "../images/jms4.jpg",
       judul: "Suasana Pit Servis & Penanganan Kendaraan"
     },
     {
-      url: "images/jms5.jpg",
+      url: "../images/jms5.jpg",
       judul: "Kalibrasi & Pengecekan Sistem AC / Tekanan"
     },
     {
-      url: "images/jms6.jpg",
+      url: "../images/jms6.jpg",
       judul: "Inspeksi Silinder & Pengecekan Detail Mesin"
     },
     {
-      url: "images/jms7.jpg",
+      url: "../images/jms7.jpg",
       judul: "Proses Servis Malam di Paddock JMS"
     }
   ]
