@@ -67,18 +67,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 5. Handle Submit Form Booking ke WhatsApp
   const bookingForm = document.getElementById("booking-form");
-  if (bookingForm) {
-    bookingForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const nama = document.getElementById("nama-pelanggan").value;
-      const mobil = document.getElementById("mobil-pelanggan").value;
-      const layanan = document.getElementById("pilihan-layanan").value;
-      const catatan = document.getElementById("catatan-pelanggan").value || "Tidak ada catatan khusus.";
+if (bookingForm) {
+  bookingForm.addEventListener("submit", (e) => {
+    e.preventDefault();
 
-      const pesan = `Halo Admin JMS,%0D%0A%0D%0ASaya ingin melakukan booking servis dengan detail berikut:%0D%0A- *Nama*: ${nama}%0D%0A- *Motor / Plat*: ${mobil}%0D%0A- *Layanan*: ${layanan}%0D%0A- *Catatan*: ${catatan}%0D%0A%0D%0AMohon konfirmasi ketersediaan slotnya. Terima kasih!`;
-      
-      const targetWhatsApp = `https://wa.me/${jmsData.profil.whatsapp}?text=${pesan}`;
-      window.open(targetWhatsApp, '_blank');
-    });
-  }
+    const nama = document.getElementById("nama-pelanggan")?.value.trim() || "";
+    const motor = document.getElementById("motor-pelanggan")?.value.trim() || "";
+    const layanan = document.getElementById("pilihan-layanan")?.value || "Lain-Lain";
+    const catatan = document.getElementById("catatan-pelanggan")?.value.trim() || "Tidak ada catatan khusus.";
+
+    const nomorWA = (jmsData?.profil?.whatsapp || "6281286276830").replace(/\D/g, "");
+
+    const teksPesan = [
+      "Halo Admin JMS,",
+      "",
+      "Saya ingin melakukan booking servis dengan detail berikut:",
+      `- Nama: ${nama}`,
+      `- Motor / Plat: ${motor}`,
+      `- Layanan: ${layanan}`,
+      `- Catatan: ${catatan}`,
+      "",
+      "Mohon konfirmasi ketersediaan slotnya. Terima kasih!"
+    ].join("\n");
+
+    const waUrl = `https://wa.me/${nomorWA}?text=${encodeURIComponent(teksPesan)}`;
+
+    const opened = window.open(waUrl, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      window.location.href = waUrl;
+    }
+  });
+ }
 });

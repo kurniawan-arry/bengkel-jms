@@ -18,32 +18,24 @@ const jmsData = {
     {
       id: "tuneup",
       nama: "Tune-Up Mesin & Injeksi",
-      harga: "Rp 75.000",
-      durasi: "45 Menit",
       deskripsi: "Pembersihan komponen bakar, cek busi, setel klep presisi, dan diagnostik optimal.",
       kategori: "Servis Ringan"
     },
     {
       id: "gantioli",
       nama: "Ganti Oli & Perawatan Rutin",
-      harga: "Rp 35.000 (Jasa)",
-      durasi: "15 Menit",
       deskripsi: "Penggantian oli mesin profesional dengan pelumas original pilihan terbaik.",
       kategori: "Perawatan Rutin"
     },
     {
       id: "ac-diagnostik",
       nama: "Pengecekan & Servis AC / Sistem Pendingin",
-      harga: "Mulai Rp 100.000",
-      durasi: "45-60 Menit",
       deskripsi: "Manifold gauge testing, cek tekanan freon, dan perbaikan sistem pendingin.",
       kategori: "Kaki-Kaki & AC"
     },
     {
       id: "overhaul",
       nama: "Overhaul / Turun Mesin Total",
-      harga: "Mulai Rp 350.000",
-      durasi: "2-3 Hari",
       deskripsi: "Pengecekan total komponen silinder, piston, kruk as, timing belt, dan blok mesin.",
       kategori: "Servis Berat"
     }
