@@ -1,5 +1,5 @@
-// script.js - Render otomatis data & slot Google Sheets ke website
-const SHEET_SLOT_URL = "https://script.google.com/macros/s/AKfycbywdlANrv6tT9_De8-nYfiBa5VgKI_qSSmqjmEgps82g8jkwmjBeYhaDEA3y5W3C3Gm/exec";
+// script.js - Sinkronisasi status slot GET, kirim booking POST ke Google Sheets & buka WhatsApp
+const SHEET_SLOT_URL = "TEMPEL_WEB_APP_URL_ANDA_DI_SINI";
 
 async function muatStatusSlot() {
   const statusEl = document.getElementById("status-slot");
@@ -23,6 +23,24 @@ async function muatStatusSlot() {
     }
   } catch (err) {
     console.warn("Gagal mengambil status slot dari Google Sheets, menggunakan data lokal.", err);
+  }
+}
+
+function kirimBookingKeSheet(payload) {
+  if (!SHEET_SLOT_URL || SHEET_SLOT_URL.includes("TEMPEL_WEB_APP_URL")) return;
+
+  try {
+    fetch(SHEET_SLOT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch(err => {
+      console.warn("Gagal mengirim data booking ke Google Sheets:", err);
+    });
+  } catch (err) {
+    console.warn("Error saat memanggil fetch POST ke Google Sheets:", err);
   }
 }
 
@@ -55,27 +73,36 @@ document.addEventListener("DOMContentLoaded", () => {
   // 2. Render Status Slot (Otomatis sinkron dengan Google Sheets)
   muatStatusSlot();
 
-  // 3. Render Daftar Layanan di HTML & Dropdown Tanpa Harga + Opsi Lain-Lain
+  // 3. Render Daftar Layanan di HTML (Tanpa Estimasi Biaya / undefined + Tombol Konsultasi WA)
   const layananContainer = document.getElementById("daftar-layanan");
   const selectLayanan = document.getElementById("pilihan-layanan");
 
   if (layananContainer && selectLayanan) {
-    layananContainer.innerHTML = jmsData.layanan.map(item => `
-      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-red-500/50 hover:bg-slate-900/80 transition-all flex flex-col justify-between">
-        <div>
-          <span class="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-500/10 px-2.5 py-1 rounded-md inline-block mb-3">${item.kategori}</span>
-          <h3 class="text-xl font-bold text-white mb-2">${item.nama}</h3>
-          <p class="text-slate-400 text-sm mb-6 leading-relaxed">${item.deskripsi}</p>
-        </div>
-        <div class="flex items-center justify-between pt-4 border-t border-slate-800/80">
+    layananContainer.innerHTML = jmsData.layanan.map(item => {
+      const kategori = item.kategori || "Layanan Bengkel";
+      const namaLayanan = item.nama || "Layanan Servis";
+      const deskripsi = item.deskripsi || "";
+      const pesanKonsultasi = encodeURIComponent(
+        `Halo Admin JMS, saya ingin konsultasi mengenai layanan *${namaLayanan}*. Mohon informasinya.`
+      );
+      const waKonsultasiUrl = `https://wa.me/${nomorWA}?text=${pesanKonsultasi}`;
+
+      return `
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-red-500/50 hover:bg-slate-900/80 transition-all flex flex-col justify-between">
           <div>
-            <span class="text-xs text-slate-500 block">Estimasi Biaya</span>
-            <span class="text-red-400 font-extrabold text-lg">${item.harga}</span>
+            <span class="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-500/10 px-2.5 py-1 rounded-md inline-block mb-3">${kategori}</span>
+            <h3 class="text-xl font-bold text-white mb-2">${namaLayanan}</h3>
+            <p class="text-slate-400 text-sm mb-6 leading-relaxed">${deskripsi}</p>
           </div>
-          <span class="text-xs font-semibold text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg">⏱️ ${item.durasi}</span>
+          <div class="pt-4 border-t border-slate-800/80">
+            <a href="${waKonsultasiUrl}" target="_blank" rel="noopener noreferrer"
+               class="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 rounded-xl transition-colors">
+              💬 Konsultasikan via WhatsApp
+            </a>
+          </div>
         </div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
 
     // Dropdown tanpa harga + opsi Lain-Lain
     selectLayanan.innerHTML = `
@@ -100,30 +127,61 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join("");
   }
 
-  // 5. Handle Submit Form Booking ke WhatsApp
+  // 5. Handle Submit Form, Sinkronisasi .href, Kirim POST ke Sheet & Buka WhatsApp
   const bookingForm = document.getElementById("booking-form");
+  const btnKirimWa = document.getElementById("btn-kirim-wa");
+
+  function ambilDataBooking() {
+    return {
+      nama: document.getElementById("nama-pelanggan")?.value.trim() || "",
+      mobil: document.getElementById("mobil-pelanggan")?.value.trim() || "",
+      layanan: document.getElementById("pilihan-layanan")?.value || "Lain-Lain",
+      catatan: document.getElementById("catatan-pelanggan")?.value.trim() || "Tidak ada catatan khusus."
+    };
+  }
+
+  function buatUrlBookingWA(data) {
+    const teksPesan = [
+      "Halo JMS,",
+      "",
+      "Saya ingin melakukan booking servis dengan detail berikut:",
+      `- Nama: ${data.nama}`,
+      `- Mobil / Plat: ${data.mobil}`,
+      `- Layanan: ${data.layanan}`,
+      `- Catatan: ${data.catatan}`,
+      "",
+      "Mohon konfirmasi ketersediaan slotnya. Terima kasih!"
+    ].join("\n");
+
+    return `https://wa.me/${nomorWA}?text=${encodeURIComponent(teksPesan)}`;
+  }
+
+  if (bookingForm && btnKirimWa && btnKirimWa.tagName === "A") {
+    const updateHref = () => {
+      btnKirimWa.href = buatUrlBookingWA(ambilDataBooking());
+    };
+    bookingForm.addEventListener("input", updateHref);
+    bookingForm.addEventListener("change", updateHref);
+    updateHref();
+  }
+
   if (bookingForm) {
     bookingForm.addEventListener("submit", (e) => {
       e.preventDefault();
 
-      const nama = document.getElementById("nama-pelanggan")?.value.trim() || "";
-      const mobil = document.getElementById("mobil-pelanggan")?.value.trim() || "";
-      const layanan = document.getElementById("pilihan-layanan")?.value || "Lain-Lain";
-      const catatan = document.getElementById("catatan-pelanggan")?.value.trim() || "Tidak ada catatan khusus.";
+      const dataBooking = ambilDataBooking();
+      const waUrl = buatUrlBookingWA(dataBooking);
 
-      const teksPesan = [
-        "Halo JMS,",
-        "",
-        "Saya ingin melakukan booking servis dengan detail berikut:",
-        `- Nama: ${nama}`,
-        `- Motor / Plat: ${mobil}`,
-        `- Layanan: ${layanan}`,
-        `- Catatan: ${catatan}`,
-        "",
-        "Mohon konfirmasi ketersediaan slotnya. Terima kasih!"
-      ].join("\n");
+      if (btnKirimWa && btnKirimWa.tagName === "A") {
+        btnKirimWa.href = waUrl;
+      }
 
-      const waUrl = `https://wa.me/${nomorWA}?text=${encodeURIComponent(teksPesan)}`;
+      // Kirim hanya kolom Nama, Jenis Mobil & Plat, dan Layanan ke Google Sheet via POST
+      kirimBookingKeSheet({
+        nama: dataBooking.nama,
+        mobil: dataBooking.mobil,
+        layanan: dataBooking.layanan
+      });
 
       const opened = window.open(waUrl, "_blank", "noopener,noreferrer");
       if (!opened) {
