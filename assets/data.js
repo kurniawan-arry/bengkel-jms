@@ -11,7 +11,7 @@ const jmsData = {
   
   statusBooking: {
     bukaHariIni: true,
-    keteranganSlot: "🟢 Status Hari Ini: Buka | 2 Slot Antrian Kosong Tersedia"
+    keteranganSlot: "🟢 Status Hari Ini: Buka | 1 Slot Antrian Kosong Tersedia"
   },
 
   layanan: [
