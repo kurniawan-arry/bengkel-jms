@@ -59,6 +59,17 @@ function kirimBookingKeSheet(payload) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Hapus tombol "Lihat Daftar Harga" jika ada di halaman
+  document.querySelectorAll("a, button").forEach((el) => {
+    const teks = (el.textContent || "").trim().toLowerCase();
+    const href = (el.getAttribute("href") || "").toLowerCase();
+    if (teks.includes("lihat daftar harga") || href.includes("daftar-harga") || href.includes("harga")) {
+      if (!teks.includes("whatsapp") && !teks.includes("booking")) {
+        el.remove();
+      }
+    }
+  });
+
   if (typeof jmsData === "undefined") {
     console.error("File data.js tidak ditemukan atau gagal dimuat!");
     return;
