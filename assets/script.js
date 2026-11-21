@@ -59,8 +59,19 @@ async function muatStatusSlot() {
     if (!response.ok) return;
 
     const liveStatus = await response.json();
-    if (liveStatus && typeof liveStatus.keteranganSlot === "string" && liveStatus.keteranganSlot.trim() !== "") {
+    if (!liveStatus) return;
+
+    if (typeof liveStatus.keteranganSlot === "string" && liveStatus.keteranganSlot.trim() !== "") {
       statusEl.innerHTML = liveStatus.keteranganSlot;
+      return;
+    }
+
+    if (liveStatus.statusBengkel !== undefined || liveStatus.sisaSlot !== undefined) {
+      const rawStatus = String(liveStatus.statusBengkel || "BUKA").trim();
+      const statusLabel = rawStatus.toUpperCase() === "BUKA" ? "Buka" : rawStatus;
+      const ikonStatus = rawStatus.toUpperCase() === "BUKA" ? "🟢" : "🔴";
+      const sisaSlot = Number(liveStatus.sisaSlot ?? 0);
+      statusEl.innerHTML = `${ikonStatus} Status Hari Ini: ${statusLabel} | ${sisaSlot} Slot Antrian Kosong Tersedia`;
     }
   } catch (err) {
     console.warn("Gagal mengambil status slot dari Google Sheets, menggunakan data lokal.", err);
@@ -86,7 +97,6 @@ function kirimBookingKeSheet(payload) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Hapus tombol "Lihat Daftar Harga" jika ada di luar <nav>
   document.querySelectorAll("a, button").forEach((el) => {
     if (el.closest("nav")) return;
     const teks = (el.textContent || "").trim().toLowerCase();
@@ -104,7 +114,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // 1. Set Informasi Profil & Footer
   const navNama = document.getElementById("nav-nama-bengkel");
   if (navNama) navNama.textContent = jmsData.profil.nama;
 
@@ -127,10 +136,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setLogoDanTeksWa(navCtaWa, TEKS_TOMBOL_WA);
   }
 
-  // 2. Render Status Slot (Otomatis sinkron dengan Google Sheets)
   muatStatusSlot();
 
-  // 3. Render Daftar Layanan di HTML & Dropdown
   const layananContainer = document.getElementById("daftar-layanan");
   const selectLayanan = document.getElementById("pilihan-layanan");
 
@@ -173,7 +180,6 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  // 4. Render Galeri Foto
   const galeriContainer = document.getElementById("galeri-container");
   if (galeriContainer) {
     galeriContainer.innerHTML = jmsData.galeri.map(foto => `
@@ -186,7 +192,6 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join("");
   }
 
-  // 5. Handle Submit Form, Sinkronisasi .href, Kirim POST ke Sheet & Buka WhatsApp
   const bookingForm = document.getElementById("booking-form");
   const btnKirimWa = document.getElementById("btn-kirim-wa");
   if (btnKirimWa) {
@@ -246,7 +251,6 @@ document.addEventListener("DOMContentLoaded", () => {
         btnKirimWa.href = waUrl;
       }
 
-      // Tidak mengirim catatan ke Google Sheet agar kolom L di 'Antrian JMS' tetap khusus catatan mekanik
       kirimBookingKeSheet({
         nama: dataBooking.nama,
         mobil: dataBooking.mobil,
