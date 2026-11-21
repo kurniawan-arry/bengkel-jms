@@ -1,5 +1,5 @@
 // script.js - Sinkronisasi status slot GET, kirim booking POST ke Google Sheets, logo WA + teks & buka WhatsApp
-const SHEET_SLOT_URL = "https://script.google.com/macros/s/AKfycbxZiHmqx5hH1ifB3Gl8NQXFIteSjF7rq0_qcaqcWH4AoacJpgqfUZ2EVJtl5CCgaIg-/exec";
+const SHEET_SLOT_URL = "https://script.google.com/macros/s/AKfycbxf9MPi-EQ7U0gSTyyilsB2OHUpcTZK3zhT3GAfspqAS6vH7wJqbAzaDubCPc7fM-t7/exec";
 const TEKS_TOMBOL_WA = "Konsultasi Via Whatsapp";
 
 function ikonWhatsApp(className = "w-4 h-4 shrink-0") {
@@ -26,7 +26,6 @@ function terapkanLogoDanTeksWaKeTombol() {
   });
 
   document.querySelectorAll("a, button").forEach((el) => {
-    // Jangan sentuh link navigasi menu utama
     if (el.closest("nav")) return;
 
     const teks = (el.textContent || "").trim().toLowerCase();
@@ -49,12 +48,10 @@ async function muatStatusSlot() {
   const statusEl = document.getElementById("status-slot");
   if (!statusEl) return;
 
-  // Tampilkan status bawaan dari data.js terlebih dahulu agar tidak kosong saat loading
-  if (typeof jmsData !== "undefined" && jmsData.statusBooking) {
+  if (typeof jmsData !== "undefined" && jmsData.statusBooking && jmsData.statusBooking.keteranganSlot) {
     statusEl.innerHTML = jmsData.statusBooking.keteranganSlot;
   }
 
-  // Lewati fetch jika URL Web App Google Sheets belum diisi
   if (!SHEET_SLOT_URL || SHEET_SLOT_URL.includes("TEMPEL_WEB_APP_URL")) return;
 
   try {
@@ -62,7 +59,7 @@ async function muatStatusSlot() {
     if (!response.ok) return;
 
     const liveStatus = await response.json();
-    if (liveStatus && liveStatus.keteranganSlot) {
+    if (liveStatus && typeof liveStatus.keteranganSlot === "string" && liveStatus.keteranganSlot.trim() !== "") {
       statusEl.innerHTML = liveStatus.keteranganSlot;
     }
   } catch (err) {
@@ -133,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 2. Render Status Slot (Otomatis sinkron dengan Google Sheets)
   muatStatusSlot();
 
-  // 3. Render Daftar Layanan di HTML (Tanpa Estimasi Biaya / undefined + Logo WA + Teks) & Dropdown
+  // 3. Render Daftar Layanan di HTML & Dropdown
   const layananContainer = document.getElementById("daftar-layanan");
   const selectLayanan = document.getElementById("pilihan-layanan");
 
@@ -167,7 +164,6 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
     }).join("");
 
-    // Dropdown tanpa harga + opsi Lain-Lain
     selectLayanan.innerHTML = `
       <option value="" disabled selected>-- Pilih Jenis Layanan --</option>
       ${jmsData.layanan.map(item => `
@@ -204,11 +200,12 @@ document.addEventListener("DOMContentLoaded", () => {
       nama: document.getElementById("nama-pelanggan")?.value.trim() || "",
       mobil: document.getElementById("mobil-pelanggan")?.value.trim() || "",
       layanan: document.getElementById("pilihan-layanan")?.value || "Lain-Lain",
-      catatan: document.getElementById("catatan-pelanggan")?.value.trim() || "Tidak ada catatan khusus."
+      catatan: document.getElementById("catatan-pelanggan")?.value.trim() || ""
     };
   }
 
   function buatUrlBookingWA(data) {
+    const catatanPesan = data.catatan || "Tidak ada catatan khusus.";
     const teksPesan = [
       "Halo Admin JMS,",
       "",
@@ -216,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
       `- Nama: ${data.nama}`,
       `- Mobil & Plat: ${data.mobil}`,
       `- Layanan: ${data.layanan}`,
-      `- Catatan: ${data.catatan}`,
+      `- Catatan: ${catatanPesan}`,
       "",
       "Mohon konfirmasi ketersediaan slotnya. Terima kasih!"
     ].join("\n");
@@ -238,13 +235,18 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
 
       const dataBooking = ambilDataBooking();
+      if (!dataBooking.nama || !dataBooking.mobil) {
+        alert("Mohon lengkapi Nama dan Jenis Mobil & Plat terlebih dahulu.");
+        return;
+      }
+
       const waUrl = buatUrlBookingWA(dataBooking);
 
       if (btnKirimWa && btnKirimWa.tagName === "A") {
         btnKirimWa.href = waUrl;
       }
 
-      // Kirim hanya kolom Nama, Jenis Mobil & Plat, Layanan, dan Status ke Google Sheet via POST
+      // Tidak mengirim catatan ke Google Sheet agar kolom L di 'Antrian JMS' tetap khusus catatan mekanik
       kirimBookingKeSheet({
         nama: dataBooking.nama,
         mobil: dataBooking.mobil,
@@ -255,6 +257,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const opened = window.open(waUrl, "_blank", "noopener,noreferrer");
       if (!opened) {
         window.location.href = waUrl;
+      }
+
+      bookingForm.reset();
+      if (btnKirimWa && btnKirimWa.tagName === "A") {
+        btnKirimWa.href = buatUrlBookingWA(ambilDataBooking());
       }
     });
   }
