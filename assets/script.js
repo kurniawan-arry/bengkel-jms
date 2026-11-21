@@ -1,5 +1,5 @@
 // script.js - Sinkronisasi status slot GET, kirim booking POST ke Google Sheets, logo WA + teks & buka WhatsApp
-const SHEET_SLOT_URL = "https://script.google.com/macros/s/AKfycbzQ0lNzgBemqImD7BwajEERDFuQ2oY07plvljblXf4OhP5WlAMUiQ1PebnhaFoRIejS/exec";
+const SHEET_SLOT_URL = "https://script.google.com/macros/s/AKfycbxN9fXfvub5mSuEP8OsGxd899oCbU7ZLOh6wREpKBBAVLL_3gIjp3aIlqkVjA2D4MsY/exec";
 const TEKS_TOMBOL_WA = "Konsultasi Via Whatsapp";
 
 function ikonWhatsApp(className = "w-4 h-4 shrink-0") {
