@@ -8,6 +8,7 @@
   const MAX_DRIVE_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB untuk Google Drive
   const LOGO_INVOICE_SRC = "images/JMS%20Mechanical%20Graffiti%20Sticker.png";
   const FALLBACK_IMG_SRC = "images/1794759372257.jpg";
+  const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxKZ_w_LhKZ9s0KOoI5LpopgJBlomjukaTyURLI4RyUlrRs4tkyPvn-wnAWYXSXVqo8/exec"
 
   let stateData = window.mergeJmsData({});
   let editingServiceIdx = -1;
@@ -18,6 +19,7 @@
     return (
       localStorage.getItem(GAS_URL_KEY) ||
       (stateData && stateData.meta && stateData.meta.appsScriptUrl) ||
+      DEFAULT_GAS_URL ||
       ""
     ).trim();
   }
