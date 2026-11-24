@@ -6,12 +6,13 @@
   const DEFAULT_PIN = "123456";
   const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 Menit
   const MAX_DRIVE_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB untuk Google Drive
-  const MAX_SHEETS_BASE64_BYTES = 35 * 1024; // 35 KB untuk Base64 langsung ke Sheets
   const LOGO_INVOICE_SRC = "images/JMS%20Mechanical%20Graffiti%20Sticker.png";
+  const FALLBACK_IMG_SRC = "images/1794759372257.jpg";
 
   let stateData = window.mergeJmsData({});
   let editingServiceIdx = -1;
   let invoiceItems = [];
+  let pendingGalleryUpload = null;
 
   function getGasUrl() {
     return (
@@ -57,6 +58,17 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function normalizeImageSrc(rawSrc) {
+    const s = String(rawSrc || "").trim();
+    if (!s || s.startsWith("drive://")) return FALLBACK_IMG_SRC;
+
+    const driveMatch = s.match(/(?:\/d\/|[?&]id=|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+      return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+    }
+    return s;
   }
 
   function getHistory() {
@@ -203,7 +215,7 @@
       .map(
         (g) => `
         <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
-          <img src="${esc(g.gambar || "")}" alt="${esc(g.judul || "Galeri JMS")}" class="w-full h-52 object-cover">
+          <img src="${esc(normalizeImageSrc(g.gambar))}" alt="${esc(g.judul || "Galeri JMS")}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${FALLBACK_IMG_SRC}';" class="w-full h-52 object-cover bg-slate-800">
           <div class="p-5">
             <h4 class="font-bold text-white text-base mb-1">${esc(g.judul || "")}</h4>
             <p class="text-slate-400 text-xs leading-relaxed">${esc(g.keterangan || "")}</p>
@@ -351,6 +363,44 @@
     });
   }
 
+  async function uploadGalleryImageToDrive(pendingObj) {
+    const endpoint = getGasUrl();
+    if (!endpoint || !pendingObj || !pendingObj.imageBase64) return "";
+
+    try {
+      const resp = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "upload_gallery_image",
+          fileName: pendingObj.fileName,
+          mimeType: pendingObj.mimeType || "image/jpeg",
+          imageBase64: pendingObj.imageBase64
+        })
+      });
+      const json = await resp.json();
+      if (json && json.status === "ok" && json.url) {
+        return String(json.url).trim();
+      }
+    } catch (_) {}
+
+    try {
+      await fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "upload_gallery_image",
+          fileName: pendingObj.fileName,
+          mimeType: pendingObj.mimeType || "image/jpeg",
+          imageBase64: pendingObj.imageBase64
+        })
+      });
+    } catch (_) {}
+
+    return "";
+  }
+
   function initAdmin() {
     const trigger = document.createElement("button");
     trigger.type = "button";
@@ -369,7 +419,7 @@
             <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" class="w-10 h-10 rounded-lg object-contain bg-white p-0.5">
             <div>
               <h3 class="text-base sm:text-lg font-extrabold leading-tight">JMS Admin Console (Database Google Sheets)</h3>
-              <p class="text-[11px] text-slate-400">Perubahan tersimpan ke Google Sheets &amp; Drive tanpa export/commit GitHub</p>
+              <p class="text-[11px] text-slate-400">Perubahan tersimpan ke Google Sheets</p>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -443,12 +493,12 @@
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
               <div>
                 <h4 class="font-extrabold text-slate-900 text-base">Kelola Foto Galeri Aktivitas JMS (<span id="gal-count">0</span>)</h4>
-                <p class="text-xs text-slate-500">Upload foto dari HP ke Google Drive / Sheets atau isi path gambar seperti <code>images/foto.jpg</code>, lalu simpan ke Google Sheets.</p>
+                <p class="text-xs text-slate-500">Pilih foto (otomatis dikecilkan &amp; dikonversi ke .jpg), klik <strong>+ Tambah Foto</strong> untuk disimpan ke Drive (<code>JMS/galeri</code>) &amp; link-nya ke <code>CMS_Galeri</code>.</p>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start bg-white p-4 rounded-xl border border-slate-200">
                 <div class="sm:col-span-3">
                   <label class="block text-xs font-bold text-slate-700 mb-1">Judul Foto *</label>
-                  <input type="text" id="gal-judul" placeholder="Cth: Overhaul Mesin" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                  <input type="text" id="gal-judul" placeholder="Cth: Pemeriksaan Transmisi BMW F30" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
                 </div>
                 <div class="sm:col-span-3">
                   <label class="block text-xs font-bold text-slate-700 mb-1">Keterangan</label>
@@ -456,11 +506,11 @@
                 </div>
                 <div class="sm:col-span-4 space-y-1.5">
                   <label class="block text-xs font-bold text-slate-700">Path / URL Foto atau Upload HP</label>
-                  <input type="text" id="gal-url" placeholder="images/foto.jpg atau URL Drive" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                  <input type="text" id="gal-url" placeholder="Otomatis terisi saat upload atau isi URL" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
                   <div class="flex flex-wrap items-center gap-2">
                     <input type="file" id="gal-file" accept="image/*" class="text-[11px] text-slate-600 max-w-full">
                     <span class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                      Maks. 2 MB (Drive) • Maks. 35 KB (Sheets)
+                      Maks. 2 MB (Auto-convert .jpg ke Drive JMS/galeri)
                     </span>
                   </div>
                   <p id="gal-upload-status" class="text-[11px] text-slate-500"></p>
@@ -692,7 +742,7 @@
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-2xl space-y-4">
               <h4 class="font-extrabold text-slate-900 text-base">Sinkronisasi Langsung ke Google Sheets</h4>
               <p class="text-xs text-slate-600 leading-relaxed">
-                Tidak perlu lagi export atau commit <code>content.json</code> ke GitHub. Semua perubahan Layanan, Galeri, dan Profil Bengkel disimpan ke tab <code>CMS_Profil</code>, <code>Pricelist</code>, dan <code>CMS_Galeri</code> pada Google Sheets dan otomatis terbaca di semua perangkat/pengunjung.
+                Semua perubahan Layanan, Galeri, dan Profil Bengkel disimpan ke tab <code>CMS_Profil</code>, <code>Pricelist</code>, dan <code>CMS_Galeri</code> pada Google Sheets dan otomatis terbaca di semua perangkat/pengunjung.
               </p>
               <div class="flex flex-wrap gap-3">
                 <button type="button" id="cms-push-sheets" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">Push Semua Perubahan ke Google Sheets</button>
@@ -879,7 +929,7 @@
           (g, idx) => `
           <div class="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col justify-between">
             <div>
-              <img src="${esc(g.gambar)}" alt="${esc(g.judul)}" class="w-full h-32 object-cover bg-slate-100">
+              <img src="${esc(normalizeImageSrc(g.gambar))}" alt="${esc(g.judul)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${FALLBACK_IMG_SRC}';" class="w-full h-32 object-cover bg-slate-100">
               <div class="p-3">
                 <div class="font-bold text-xs text-slate-900">${esc(g.judul)}</div>
                 <p class="text-[11px] text-slate-500 mt-0.5">${esc(g.keterangan || "")}</p>
@@ -907,6 +957,7 @@
       const file = e.target.files[0];
       const statusEl = document.getElementById("gal-upload-status");
       const urlInput = document.getElementById("gal-url");
+      pendingGalleryUpload = null;
       if (!file) return;
 
       if (file.size > MAX_DRIVE_UPLOAD_BYTES) {
@@ -916,43 +967,19 @@
         return;
       }
 
-      const gasUrl = getGasUrl();
-      statusEl.textContent = "⏳ Memproses gambar...";
-
+      statusEl.textContent = "⏳ Mengompres & mengonversi ukuran gambar ke .jpg...";
       try {
-        const compressed = await compressImageFile(file, 1080, 0.78);
-
-        if (gasUrl) {
-          statusEl.textContent = "⏳ Mengirim ke Google Drive...";
-          await fetch(gasUrl, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-              action: "upload_gallery_image",
-              fileName: file.name,
-              mimeType: compressed.mimeType,
-              imageBase64: compressed.base64
-            })
-          });
-
-          if (!urlInput.value.trim()) {
-            urlInput.value = `images/${file.name}`;
-          }
-          statusEl.textContent = `✅ Terkirim ke Drive (folder JMS). Path: ${urlInput.value}`;
-          return;
-        }
-
-        if (compressed.approxBytes <= MAX_SHEETS_BASE64_BYTES) {
-          urlInput.value = compressed.dataUrl;
-          statusEl.textContent = "✅ Siap disimpan ke Google Sheets (≤ 35 KB).";
-        } else {
-          urlInput.value = `images/${file.name}`;
-          statusEl.textContent = "⚠️ File > 35 KB: pakai path images/ atau isi URL Web App Apps Script.";
-        }
+        const compressed = await compressImageFile(file, 900, 0.75);
+        const baseName = file.name.replace(/\.[^.]+$/, "") || "galeri-jms";
+        pendingGalleryUpload = {
+          fileName: `${baseName}.jpg`,
+          mimeType: "image/jpeg",
+          imageBase64: compressed.base64
+        };
+        urlInput.value = `drive://${baseName}.jpg`;
+        statusEl.textContent = `✅ Auto-convert siap (~${Math.round(compressed.approxBytes / 1024)} KB). Klik '+ Tambah Foto'.`;
       } catch (err) {
-        urlInput.value = `images/${file.name}`;
-        statusEl.textContent = "⚠️ Dipakai path lokal: " + err.message;
+        statusEl.textContent = "⚠️ Gagal memproses gambar: " + err.message;
       }
     });
 
@@ -967,16 +994,29 @@
       const keterangan = ketInput.value.trim();
       let gambar = urlInput.value.trim();
 
-      if (!gambar && fileInput.files && fileInput.files[0]) {
-        gambar = `images/${fileInput.files[0].name}`;
+      if (!judul) {
+        alert("Judul foto wajib diisi.");
+        return;
       }
 
-      if (!judul || !gambar) {
-        alert("Judul foto dan Path/URL gambar wajib diisi.");
+      if (pendingGalleryUpload) {
+        statusEl.textContent = "⏳ Menyimpan file .jpg ke Google Drive (JMS/galeri)...";
+        const driveUrl = await uploadGalleryImageToDrive(pendingGalleryUpload);
+        if (driveUrl) {
+          gambar = driveUrl;
+        } else if (!gambar || gambar.startsWith("drive://")) {
+          gambar = `images/${pendingGalleryUpload.fileName}`;
+        }
+      }
+
+      gambar = normalizeImageSrc(gambar);
+      if (!gambar) {
+        alert("Pilih file gambar atau isi URL foto terlebih dahulu.");
         return;
       }
 
       stateData.galeri.push({ judul, keterangan, gambar });
+      pendingGalleryUpload = null;
       judulInput.value = "";
       ketInput.value = "";
       urlInput.value = "";
@@ -988,11 +1028,16 @@
 
       const ok = await saveCmsToSheets();
       if (ok) {
-        alert("Foto ditambahkan & tersimpan ke Google Sheets.");
+        alert("Foto tersimpan ke Google Drive & link-nya masuk ke CMS_Galeri.");
       }
     });
 
     document.getElementById("gal-save-btn").addEventListener("click", async () => {
+      stateData.galeri = stateData.galeri.map((g) => ({
+        judul: g.judul,
+        keterangan: g.keterangan,
+        gambar: normalizeImageSrc(g.gambar)
+      }));
       renderAdminGaleri();
       renderGaleri();
       const ok = await saveCmsToSheets();
