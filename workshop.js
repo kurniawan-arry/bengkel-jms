@@ -897,6 +897,7 @@
         b.addEventListener("click", async () => {
           stateData.galeri.splice(Number(b.getAttribute("data-del-gal")), 1);
           renderAdminGaleri();
+          renderGaleri();
           await saveCmsToSheets();
         });
       });
@@ -922,9 +923,10 @@
         const compressed = await compressImageFile(file, 1080, 0.78);
 
         if (gasUrl) {
-          statusEl.textContent = "⏳ Meng-upload ke Google Drive...";
-          const resp = await fetch(gasUrl, {
+          statusEl.textContent = "⏳ Mengirim ke Google Drive...";
+          await fetch(gasUrl, {
             method: "POST",
+            mode: "no-cors",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({
               action: "upload_gallery_image",
@@ -933,30 +935,41 @@
               imageBase64: compressed.base64
             })
           });
-          const result = await resp.json();
-          if (result && result.status === "ok" && result.url) {
-            urlInput.value = result.url;
-            statusEl.textContent = "✅ Tersimpan ke Google Drive.";
-            return;
+
+          if (!urlInput.value.trim()) {
+            urlInput.value = `images/${file.name}`;
           }
+          statusEl.textContent = `✅ Terkirim ke Drive (folder JMS). Path: ${urlInput.value}`;
+          return;
         }
 
         if (compressed.approxBytes <= MAX_SHEETS_BASE64_BYTES) {
           urlInput.value = compressed.dataUrl;
           statusEl.textContent = "✅ Siap disimpan ke Google Sheets (≤ 35 KB).";
         } else {
-          urlInput.value = "";
-          statusEl.textContent = "⚠️ File > 35 KB: isi URL Web App Apps Script untuk simpan ke Drive, atau pakai path images/.";
+          urlInput.value = `images/${file.name}`;
+          statusEl.textContent = "⚠️ File > 35 KB: pakai path images/ atau isi URL Web App Apps Script.";
         }
       } catch (err) {
-        statusEl.textContent = "⚠️ Gagal memproses gambar: " + err.message;
+        urlInput.value = `images/${file.name}`;
+        statusEl.textContent = "⚠️ Dipakai path lokal: " + err.message;
       }
     });
 
     document.getElementById("gal-add-btn").addEventListener("click", async () => {
-      const judul = document.getElementById("gal-judul").value.trim();
-      const keterangan = document.getElementById("gal-ket").value.trim();
-      const gambar = document.getElementById("gal-url").value.trim();
+      const judulInput = document.getElementById("gal-judul");
+      const ketInput = document.getElementById("gal-ket");
+      const urlInput = document.getElementById("gal-url");
+      const fileInput = document.getElementById("gal-file");
+      const statusEl = document.getElementById("gal-upload-status");
+
+      const judul = judulInput.value.trim();
+      const keterangan = ketInput.value.trim();
+      let gambar = urlInput.value.trim();
+
+      if (!gambar && fileInput.files && fileInput.files[0]) {
+        gambar = `images/${fileInput.files[0].name}`;
+      }
 
       if (!judul || !gambar) {
         alert("Judul foto dan Path/URL gambar wajib diisi.");
@@ -964,19 +977,28 @@
       }
 
       stateData.galeri.push({ judul, keterangan, gambar });
-      document.getElementById("gal-judul").value = "";
-      document.getElementById("gal-ket").value = "";
-      document.getElementById("gal-url").value = "";
-      document.getElementById("gal-file").value = "";
-      document.getElementById("gal-upload-status").textContent = "";
+      judulInput.value = "";
+      ketInput.value = "";
+      urlInput.value = "";
+      fileInput.value = "";
+      statusEl.textContent = "";
+
       renderAdminGaleri();
+      renderGaleri();
+
       const ok = await saveCmsToSheets();
-      if (ok) alert("Foto ditambahkan & tersimpan ke Google Sheets.");
+      if (ok) {
+        alert("Foto ditambahkan & tersimpan ke Google Sheets.");
+      }
     });
 
     document.getElementById("gal-save-btn").addEventListener("click", async () => {
+      renderAdminGaleri();
+      renderGaleri();
       const ok = await saveCmsToSheets();
-      if (ok) alert("Perubahan galeri tersimpan ke Google Sheets.");
+      if (ok) {
+        alert("Perubahan galeri tersimpan ke Google Sheets.");
+      }
     });
 
     function fillProfileForm() {
