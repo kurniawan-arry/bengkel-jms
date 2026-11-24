@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "namaBengkel": "Jamal Motor Sport",
+    "subBrand": "Pro Performance Workshop",
+    "whatsapp": "6281234567890",
+    "heroBg": "images/1794759372257.jpg",
+    "heroTagline": "Spesialis Perawatan, Tune-Up & Modifikasi Motor Performa Tinggi",
+    "heroDeskripsi": "Ditangani oleh mekanik berpengalaman profesional dengan peralatan diagnostik modern. Menjaga tarikan mobil Anda selalu bertenaga, responsif, dan siap harian maupun balap.",
+    "footerDeskripsi": "Bengkel rujukan pencinta kecepatan dan perawatan mobil harian berkualitas tinggi.",
+    "jamOperasional": [
+      "Senin - Minggu: 15.00 - 02.00 WIB",
+      "Hari Libur Tetap Buka"
+    ],
+    "alamat": "📍 Jl. Raya Bengkel JMS No. 12",
+    "telepon": "📞 +62 812-3456-7890",
+    "appsScriptUrl": ""
+  },
+  "layanan": [
+    {
+      "kode": "SRV-01",
+      "nama": "Service ECU Engine & General Cek",
+      "harga": "IDR 2.900.000",
+      "deskripsi": "Pemeriksaan menyeluruh ECU, sensor mesin, dan diagnostik performa kendaraan."
+    },
+    {
+      "kode": "PRT-02",
+      "nama": "Pompa Bensin A/M",
+      "harga": "IDR 785.000",
+      "deskripsi": "Penggantian pompa bensin aftermarket berkualitas untuk suplai bahan bakar optimal."
+    },
+    {
+      "kode": "PRT-03",
+      "nama": "Seal dan Clip Fuel Pump",
+      "harga": "IDR 385.000",
+      "deskripsi": "Penggantian seal serta clip pengunci fuel pump agar bebas bocor dan tekanan stabil."
+    },
+    {
+      "kode": "SRV-04",
+      "nama": "Ganti Oli & Perawatan Rutin",
+      "harga": "IDR 150.000",
+      "deskripsi": "Penggantian oli mesin, pengecekan cairan, dan inspeksi berkala mobil harian."
+    }
+  ],
+  "galeri": [
+    {
+      "judul": "Pit Servis & Diagnostik JMS",
+      "keterangan": "Penanganan teliti pada sistem mesin dan kaki-kaki kendaraan.",
+      "gambar": "images/1794759372257.jpg"
+    }
+  ]
+}
