@@ -237,10 +237,6 @@
     return `INV-JMS-${ymd}-${rand}`;
   }
 
-  /**
-   * Membuat elemen kloning invoice penuh di luar modal agar hasil cetak/PDF
-   * tidak terpotong oleh scroll/max-height modal.
-   */
   function createFullInvoiceClone() {
     const sourceEl = document.getElementById("inv-preview-paper");
     if (!sourceEl) return null;
@@ -601,8 +597,9 @@
 
                 <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5">
                   <div class="text-xs font-extrabold text-slate-700">Kirim Pelanggan & Simpan ke Google Drive</div>
+                  <button type="button" id="inv-gen-pdf-and-wa" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Generate &amp; Unduh Lampiran PDF + Kirim WA Pelanggan</button>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <button type="button" id="inv-send-wa" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Kirim Invoice ke No. WA Pelanggan</button>
+                    <button type="button" id="inv-send-wa" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Kirim Rincian ke No. WA</button>
                     <button type="button" id="inv-save-drive" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Simpan ke Google Drive</button>
                   </div>
                   <button type="button" id="inv-download-pdf" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Cetak / Download PDF Invoice</button>
@@ -1071,6 +1068,55 @@
     document.getElementById("inv-clear-history").addEventListener("click", () => {
       localStorage.removeItem(HISTORY_KEY);
       renderInvoiceHistory();
+    });
+
+    function buildCustomerInvoiceWaMessage() {
+      const namaPelanggan = document.getElementById("inv-nama").value.trim() || "Pelanggan";
+      const noInv = document.getElementById("inv-no").value.trim() || generateInvoiceNumber();
+
+      return [
+        `Halo ${namaPelanggan}`,
+        ``,
+        `Terima kasih telah memilih Jamal Motor Sport (JMS) sebagai bengkel kepercayaan anda.`,
+        `Berikut Lampiran Invoice yang kami lampirkan ke anda.`,
+        ``,
+        `Nomor Invoice`,
+        `#${noInv}`,
+        ``,
+        `Tips:`,
+        `-   Gunakan metode Pembayaran Instan (Virtual Account dan Transfer).`,
+        `-   Anda wajib melakukan konfirmasi melalui wa.link/jp3ufp apabila menggunakan Metode Pembayaran Manual.`,
+        `-  Berikut No. Rekening 8831665246 BCA a.n Damaris Butar Butar`,
+        ``,
+        `Salam JMS,`,
+        `Terima Kasih`
+      ].join("\n");
+    }
+
+    document.getElementById("inv-gen-pdf-and-wa").addEventListener("click", async () => {
+      const waTarget = String(document.getElementById("inv-wa").value || "").replace(/\D/g, "");
+      if (!waTarget) {
+        alert("Masukkan No. WA Pelanggan terlebih dahulu (contoh: 62812...).");
+        return;
+      }
+
+      const noInv = document.getElementById("inv-no").value.trim() || "INV-JMS";
+      const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
+      const filename = `${noInv} - ${nama}.pdf`;
+
+      if (window.html2pdf) {
+        const built = await renderPdfWorker(filename);
+        if (built) {
+          await built.worker.save();
+          if (built.host && built.host.parentNode) built.host.parentNode.removeChild(built.host);
+        }
+      } else {
+        window.print();
+      }
+
+      recordInvoiceLog("");
+      const pesan = buildCustomerInvoiceWaMessage();
+      window.open(`https://wa.me/${waTarget}?text=${encodeURIComponent(pesan)}`, "_blank");
     });
 
     document.getElementById("inv-send-wa").addEventListener("click", () => {
