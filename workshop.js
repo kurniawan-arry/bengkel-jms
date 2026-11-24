@@ -1430,8 +1430,10 @@
 
     trigger.addEventListener("click", openModal);
     document.getElementById("jms-cms-close").addEventListener("click", () => {
+      clearAdminSession();
       modal.classList.add("hidden");
       modal.classList.remove("flex");
+      refreshConsoleAuth();
     });
     document.getElementById("cms-lock-btn").addEventListener("click", () => {
       clearAdminSession();
