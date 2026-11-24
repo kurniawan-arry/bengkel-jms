@@ -177,6 +177,15 @@
     if (footerAlamat) footerAlamat.textContent = m.alamat;
     if (footerTelp) footerTelp.textContent = m.telepon;
 
+    const defaultMapsQuery = "Jl. Jabal Mina Raya No.18, Kelapa Dua, Kecamatan Kelapa Dua, Kabupaten Tangerang, Banten 15810";
+    const mapsQuery = String(m.alamat || "")
+      .replace(/^📍\s*/, "")
+      .trim() || defaultMapsQuery;
+    const gmapsBtn = document.getElementById("btn-buka-gmaps");
+    if (gmapsBtn) {
+      gmapsBtn.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
+    }
+
     if (heroSec && m.heroBg) {
       heroSec.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('${m.heroBg}')`;
     }
