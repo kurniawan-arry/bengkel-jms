@@ -58,8 +58,18 @@ window.JMS_DEFAULT_DATA = {
   galeri: [
     {
       judul: "Pit Servis & Diagnostik JMS",
-      keterangan: "Penanganan teliti pada sistem mesin dan kaki-kaki mobil.",
-      gambar: "images/1794759372257.jpg"
+      keterangan: "Penanganan teliti pada sistem mesin dan kelistrikan mobil.",
+      gambar: "images/jms1.jpg"
+    },
+    {
+      judul: "Perawatan Rutin Tune-Up JMS",
+      keterangan: "Perawatan rutin pada mobil dengan Tune-Up dan Pergantian Oli Mesin.",
+      gambar: "images/jms9.jpg"
+    },
+    {
+      judul: "Pengecekan BMW F30 JMS",
+      keterangan: "Penanganan pada sistem transmisi dan mesin mobil BMW F30.",
+      gambar: "images/jms10.jpg"
     }
   ]
 };
