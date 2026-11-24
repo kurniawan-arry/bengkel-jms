@@ -4,7 +4,9 @@
   const AUTH_EXPIRY_KEY = "jms_cms_admin_expiry_v1";
   const HISTORY_KEY = "jms_invoice_history_v1";
   const DEFAULT_PIN = "123456";
-  const SESSION_DURATION_MS = 2 * 60 * 60 * 1000; // 2 Jam
+  const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 Menit
+  const MAX_DRIVE_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB untuk Google Drive
+  const MAX_SHEETS_BASE64_BYTES = 35 * 1024; // 35 KB untuk Base64 langsung ke Sheets
   const LOGO_INVOICE_SRC = "images/JMS%20Mechanical%20Graffiti%20Sticker.png";
 
   let stateData = window.mergeJmsData({});
@@ -39,27 +41,14 @@
     localStorage.removeItem(AUTH_EXPIRY_KEY);
   }
 
-  function getRemainingSessionMs() {
-    const raw = Number(localStorage.getItem(AUTH_EXPIRY_KEY) || 0);
-    if (!raw) return 0;
-    const diff = raw - Date.now();
-    if (diff <= 0) {
-      clearAdminSession();
-      return 0;
-    }
-    return diff;
-  }
-
   function isLoggedIn() {
-    return getRemainingSessionMs() > 0;
-  }
-
-  function formatDuration(ms) {
-    const totalSec = Math.max(0, Math.floor(ms / 1000));
-    const hrs = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    if (hrs > 0) return `${hrs}j ${mins}m`;
-    return `${mins}m`;
+    const raw = Number(localStorage.getItem(AUTH_EXPIRY_KEY) || 0);
+    if (!raw) return false;
+    if (Date.now() >= raw) {
+      clearAdminSession();
+      return false;
+    }
+    return true;
   }
 
   function esc(str) {
@@ -94,10 +83,19 @@
       const resp = await fetch(`${endpoint}${sep}action=get_cms&t=${Date.now()}`);
       const json = await resp.json();
       if (json && json.status === "ok") {
+        const nextLayanan =
+          Array.isArray(json.layanan) && json.layanan.length
+            ? json.layanan
+            : stateData.layanan;
+        const nextGaleri =
+          Array.isArray(json.galeri) && json.galeri.length
+            ? json.galeri
+            : stateData.galeri;
+
         const merged = window.mergeJmsData({
           meta: Object.assign({}, json.meta || {}, { appsScriptUrl: endpoint }),
-          layanan: json.layanan || [],
-          galeri: json.galeri || []
+          layanan: nextLayanan,
+          galeri: nextGaleri
         });
         if (json.meta && Array.isArray(json.meta.jamOperasionalList) && json.meta.jamOperasionalList.length) {
           merged.meta.jamOperasional = json.meta.jamOperasionalList;
@@ -266,10 +264,6 @@
     return `INV-JMS-${ymd}-${rand}`;
   }
 
-  /**
-   * Membuat kloning invoice penuh dengan lebar 680px agar muat sempurna
-   * di dalam lebar cetak A4 portrait setelah margin tanpa terpotong kanan/kiri.
-   */
   function createFullInvoiceClone() {
     const sourceEl = document.getElementById("inv-preview-paper");
     if (!sourceEl) return null;
@@ -327,6 +321,36 @@
     }
   }
 
+  function compressImageFile(file, maxWidth, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width;
+          let h = img.height;
+          if (w > maxWidth) {
+            h = Math.round((h * maxWidth) / w);
+            w = maxWidth;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          const base64 = dataUrl.split(",")[1] || "";
+          const approxBytes = Math.ceil((base64.length * 3) / 4);
+          resolve({ dataUrl, base64, approxBytes, mimeType: "image/jpeg" });
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   function initAdmin() {
     const trigger = document.createElement("button");
     trigger.type = "button";
@@ -345,11 +369,10 @@
             <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" class="w-10 h-10 rounded-lg object-contain bg-white p-0.5">
             <div>
               <h3 class="text-base sm:text-lg font-extrabold leading-tight">JMS Admin Console (Database Google Sheets)</h3>
-              <p class="text-[11px] text-slate-400">Sesi aktif 2 jam • Perubahan otomatis tersimpan ke Google Sheets tanpa export/commit GitHub</p>
+              <p class="text-[11px] text-slate-400">Perubahan tersimpan ke Google Sheets &amp; Drive tanpa export/commit GitHub</p>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span id="cms-session-timer" class="hidden text-[11px] font-semibold bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-lg"></span>
             <button type="button" id="cms-lock-btn" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg">Logout</button>
             <button type="button" id="jms-cms-close" class="bg-slate-800 hover:bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Tutup ✕</button>
           </div>
@@ -357,7 +380,7 @@
 
         <div id="jms-cms-login" class="p-8 max-w-md mx-auto space-y-4">
           <h4 class="text-lg font-extrabold text-slate-900">Masuk Admin Console JMS</h4>
-          <p class="text-xs text-slate-500">Masukkan PIN Admin (sesi aktif selama 2 jam). Kelola layanan, galeri bengkel, profil, dan invoice pelanggan.</p>
+          <p class="text-xs text-slate-500">Masukkan PIN Admin (sesi aktif 10 menit). Kelola layanan, galeri bengkel, profil, dan invoice pelanggan.</p>
           <input type="password" id="jms-cms-pin" placeholder="Masukkan PIN Admin" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-red-600">
           <p id="jms-cms-err" class="text-xs text-red-600 font-semibold hidden">PIN salah. Silakan coba lagi.</p>
           <button type="button" id="jms-cms-enter" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-sm shadow">Masuk Admin</button>
@@ -365,9 +388,9 @@
 
         <div id="jms-cms-editor" class="hidden p-4 sm:p-6 space-y-6">
           <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
-            <button type="button" data-tab="tab-1" class="jms-tab-btn bg-red-600 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow-sm">1. Layanan, Pricelist & Galeri</button>
-            <button type="button" data-tab="tab-2" class="jms-tab-btn bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">2. Profil Bengkel & WA</button>
-            <button type="button" data-tab="tab-3" class="jms-tab-btn bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">3. Pricelist & Invoice Builder</button>
+            <button type="button" data-tab="tab-1" class="jms-tab-btn bg-red-600 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow-sm">1. Layanan, Pricelist &amp; Galeri</button>
+            <button type="button" data-tab="tab-2" class="jms-tab-btn bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">2. Profil Bengkel &amp; WA</button>
+            <button type="button" data-tab="tab-3" class="jms-tab-btn bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">3. Pricelist &amp; Invoice Builder</button>
             <button type="button" data-tab="tab-4" class="jms-tab-btn bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm">4. Sinkronisasi Google Sheets</button>
           </div>
 
@@ -391,11 +414,11 @@
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Kategori *</label>
-                  <input type="text" id="srv-kategori" placeholder="Cth: Mesin & ECU / Sparepart / Tune-Up" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                  <input type="text" id="srv-kategori" placeholder="Cth: Mesin &amp; ECU / Sparepart / Tune-Up" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Nama Layanan / Paket *</label>
-                  <input type="text" id="srv-nama" placeholder="Cth: Tune-Up & Carbon Clean Mobil" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                  <input type="text" id="srv-nama" placeholder="Cth: Tune-Up &amp; Carbon Clean Mobil" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Harga / Estimasi (Angka Rupiah) *</label>
@@ -405,7 +428,7 @@
                   <label class="block text-xs font-bold text-slate-700 mb-1">Deskripsi Singkat *</label>
                   <textarea id="srv-deskripsi" rows="2" placeholder="Detail pekerjaan atau komponen..." class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs"></textarea>
                 </div>
-                <button type="button" id="srv-save-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs shadow">Simpan ke Pricelist & Google Sheets</button>
+                <button type="button" id="srv-save-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs shadow">Simpan ke Pricelist &amp; Google Sheets</button>
               </div>
 
               <div class="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
@@ -420,24 +443,31 @@
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
               <div>
                 <h4 class="font-extrabold text-slate-900 text-base">Kelola Foto Galeri Aktivitas JMS (<span id="gal-count">0</span>)</h4>
-                <p class="text-xs text-slate-500">Tambahkan foto galeri (URL/path gambar seperti <code>images/foto.jpg</code> atau upload file gambar) dan simpan otomatis ke Google Sheets.</p>
+                <p class="text-xs text-slate-500">Upload foto dari HP ke Google Drive / Sheets atau isi path gambar seperti <code>images/foto.jpg</code>, lalu simpan ke Google Sheets.</p>
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end bg-white p-4 rounded-xl border border-slate-200">
+              <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start bg-white p-4 rounded-xl border border-slate-200">
                 <div class="sm:col-span-3">
                   <label class="block text-xs font-bold text-slate-700 mb-1">Judul Foto *</label>
                   <input type="text" id="gal-judul" placeholder="Cth: Overhaul Mesin" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
                 </div>
-                <div class="sm:col-span-4">
+                <div class="sm:col-span-3">
                   <label class="block text-xs font-bold text-slate-700 mb-1">Keterangan</label>
                   <input type="text" id="gal-ket" placeholder="Deskripsi singkat aktivitas" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
                 </div>
-                <div class="sm:col-span-3">
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Path / URL Foto atau Upload</label>
-                  <input type="text" id="gal-url" placeholder="images/foto.jpg" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs mb-1">
-                  <input type="file" id="gal-file" accept="image/*" class="text-[11px] text-slate-600 w-full">
+                <div class="sm:col-span-4 space-y-1.5">
+                  <label class="block text-xs font-bold text-slate-700">Path / URL Foto atau Upload HP</label>
+                  <input type="text" id="gal-url" placeholder="images/foto.jpg atau URL Drive" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <input type="file" id="gal-file" accept="image/*" class="text-[11px] text-slate-600 max-w-full">
+                    <span class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                      Maks. 2 MB (Drive) • Maks. 35 KB (Sheets)
+                    </span>
+                  </div>
+                  <p id="gal-upload-status" class="text-[11px] text-slate-500"></p>
                 </div>
-                <div class="sm:col-span-2">
-                  <button type="button" id="gal-add-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs">+ Tambah Foto</button>
+                <div class="sm:col-span-2 flex flex-col gap-2">
+                  <button type="button" id="gal-add-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl text-xs">+ Tambah Foto</button>
+                  <button type="button" id="gal-save-btn" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 rounded-xl text-xs">Simpan Galeri</button>
                 </div>
               </div>
               <div id="gal-admin-list" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
@@ -447,7 +477,7 @@
           <!-- TAB 2 -->
           <div id="tab-2" class="jms-tab-pane hidden">
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-4xl space-y-4">
-              <h4 class="font-extrabold text-slate-900 text-base">Pengaturan Profil Jamal Motor Sport & WhatsApp</h4>
+              <h4 class="font-extrabold text-slate-900 text-base">Pengaturan Profil Jamal Motor Sport &amp; WhatsApp</h4>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Nama Bengkel *</label>
@@ -482,7 +512,7 @@
                   <input type="text" id="prof-jam" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm">
                 </div>
                 <div class="sm:col-span-2">
-                  <label class="block text-xs font-bold text-slate-700 mb-1">URL Web App Google Apps Script (Database CMS, Antrian & Drive Invoice)</label>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">URL Web App Google Apps Script (Database CMS, Antrian, Galeri &amp; Drive Invoice)</label>
                   <input type="text" id="prof-gas" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm">
                 </div>
                 <div class="sm:col-span-2">
@@ -500,7 +530,7 @@
               <div class="lg:col-span-6 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
                 <div class="flex items-center justify-between">
                   <div>
-                    <h4 class="font-extrabold text-slate-900 text-base">Pricelist & Invoice Builder</h4>
+                    <h4 class="font-extrabold text-slate-900 text-base">Pricelist &amp; Invoice Builder</h4>
                     <p class="text-xs text-slate-500">Pilih item dari pricelist atau tambah item custom, lalu generate invoice.</p>
                   </div>
                   <button type="button" id="inv-new-no" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-3 py-1.5 rounded-lg text-xs">No. Invoice Baru</button>
@@ -581,7 +611,7 @@
                     <div class="flex items-start gap-2.5">
                       <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" crossorigin="anonymous" class="w-14 h-14 object-contain rounded-lg border border-slate-200 bg-white p-1 shrink-0">
                       <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 px-2 py-0.5 rounded">INVOICE SERVIS & PRICELIST</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 px-2 py-0.5 rounded">INVOICE SERVIS &amp; PRICELIST</span>
                         <h4 id="prev-bengkel" class="font-extrabold text-base text-slate-900 mt-1">Jamal Motor Sport</h4>
                         <p id="prev-sub" class="text-[11px] text-slate-500">Pro Performance Workshop</p>
                         <p id="prev-alamat" class="text-[10px] text-slate-500 mt-0.5"></p>
@@ -637,7 +667,7 @@
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5">
-                  <div class="text-xs font-extrabold text-slate-700">Kirim Pelanggan & Simpan ke Google Drive</div>
+                  <div class="text-xs font-extrabold text-slate-700">Kirim Pelanggan &amp; Simpan ke Google Drive</div>
                   <button type="button" id="inv-gen-pdf-and-wa" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Generate &amp; Unduh Lampiran PDF + Kirim WA Pelanggan</button>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <button type="button" id="inv-save-drive" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Simpan ke Google Drive</button>
@@ -675,19 +705,13 @@
     `;
     document.body.appendChild(modal);
 
-    function updateSessionUi() {
-      const timerEl = document.getElementById("cms-session-timer");
+    function syncLogoutButton() {
       const lockBtn = document.getElementById("cms-lock-btn");
-      const rem = getRemainingSessionMs();
-      if (rem > 0) {
-        if (timerEl) {
-          timerEl.textContent = `Sesi: ${formatDuration(rem)}`;
-          timerEl.classList.remove("hidden");
-        }
-        if (lockBtn) lockBtn.classList.remove("hidden");
+      if (!lockBtn) return;
+      if (isLoggedIn()) {
+        lockBtn.classList.remove("hidden");
       } else {
-        if (timerEl) timerEl.classList.add("hidden");
-        if (lockBtn) lockBtn.classList.add("hidden");
+        lockBtn.classList.add("hidden");
         if (!modal.classList.contains("hidden")) {
           document.getElementById("jms-cms-login").classList.remove("hidden");
           document.getElementById("jms-cms-editor").classList.add("hidden");
@@ -695,7 +719,7 @@
       }
     }
 
-    setInterval(updateSessionUi, 30000);
+    setInterval(syncLogoutButton, 15000);
 
     modal.querySelectorAll(".jms-tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -725,12 +749,12 @@
       if (isLoggedIn()) {
         lBox.classList.add("hidden");
         eBox.classList.remove("hidden");
-        updateSessionUi();
+        syncLogoutButton();
         hydrateAllTabs();
       } else {
         lBox.classList.remove("hidden");
         eBox.classList.add("hidden");
-        updateSessionUi();
+        syncLogoutButton();
       }
     }
 
@@ -824,7 +848,7 @@
         durasi,
         nama,
         nominal,
-        harga: `IDR ${nominal.toLocaleString("id-ID")}`,
+        harga: `IDR ${(isNaN(nominal) ? 0 : nominal).toLocaleString("id-ID")}`,
         deskripsi
       };
 
@@ -878,14 +902,55 @@
       });
     }
 
-    document.getElementById("gal-file").addEventListener("change", (e) => {
+    document.getElementById("gal-file").addEventListener("change", async (e) => {
       const file = e.target.files[0];
+      const statusEl = document.getElementById("gal-upload-status");
+      const urlInput = document.getElementById("gal-url");
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        document.getElementById("gal-url").value = reader.result;
-      };
-      reader.readAsDataURL(file);
+
+      if (file.size > MAX_DRIVE_UPLOAD_BYTES) {
+        alert("Ukuran file melebihi batas maksimal 2 MB. Silakan pilih foto yang lebih kecil.");
+        e.target.value = "";
+        statusEl.textContent = "Ditolak: ukuran file melebihi 2 MB.";
+        return;
+      }
+
+      const gasUrl = getGasUrl();
+      statusEl.textContent = "⏳ Memproses gambar...";
+
+      try {
+        const compressed = await compressImageFile(file, 1080, 0.78);
+
+        if (gasUrl) {
+          statusEl.textContent = "⏳ Meng-upload ke Google Drive...";
+          const resp = await fetch(gasUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+              action: "upload_gallery_image",
+              fileName: file.name,
+              mimeType: compressed.mimeType,
+              imageBase64: compressed.base64
+            })
+          });
+          const result = await resp.json();
+          if (result && result.status === "ok" && result.url) {
+            urlInput.value = result.url;
+            statusEl.textContent = "✅ Tersimpan ke Google Drive.";
+            return;
+          }
+        }
+
+        if (compressed.approxBytes <= MAX_SHEETS_BASE64_BYTES) {
+          urlInput.value = compressed.dataUrl;
+          statusEl.textContent = "✅ Siap disimpan ke Google Sheets (≤ 35 KB).";
+        } else {
+          urlInput.value = "";
+          statusEl.textContent = "⚠️ File > 35 KB: isi URL Web App Apps Script untuk simpan ke Drive, atau pakai path images/.";
+        }
+      } catch (err) {
+        statusEl.textContent = "⚠️ Gagal memproses gambar: " + err.message;
+      }
     });
 
     document.getElementById("gal-add-btn").addEventListener("click", async () => {
@@ -894,7 +959,7 @@
       const gambar = document.getElementById("gal-url").value.trim();
 
       if (!judul || !gambar) {
-        alert("Judul foto dan URL/upload gambar wajib diisi.");
+        alert("Judul foto dan Path/URL gambar wajib diisi.");
         return;
       }
 
@@ -903,9 +968,15 @@
       document.getElementById("gal-ket").value = "";
       document.getElementById("gal-url").value = "";
       document.getElementById("gal-file").value = "";
+      document.getElementById("gal-upload-status").textContent = "";
       renderAdminGaleri();
       const ok = await saveCmsToSheets();
-      if (ok) alert("Foto galeri tersimpan ke Google Sheets.");
+      if (ok) alert("Foto ditambahkan & tersimpan ke Google Sheets.");
+    });
+
+    document.getElementById("gal-save-btn").addEventListener("click", async () => {
+      const ok = await saveCmsToSheets();
+      if (ok) alert("Perubahan galeri tersimpan ke Google Sheets.");
     });
 
     function fillProfileForm() {
@@ -1091,10 +1162,6 @@
       updateInvoicePreview();
     });
 
-    /**
-     * Mencatat 1 log riwayat per transaksi invoice dan mencegah duplikasi log
-     * untuk nomor invoice & total yang sama dalam 5 detik.
-     */
     function recordInvoiceLog(driveUrl) {
       const { total } = calcInvoiceTotals();
       const noInv = document.getElementById("inv-no").value.trim();
@@ -1266,7 +1333,7 @@
         });
 
         recordInvoiceLog("");
-        statusEl.innerHTML = `✅ Permintaan simpan PDF terkirim ke Google Apps Script (cek folder <strong>JMS</strong> di Google Drive & tab <strong>Riwayat Invoice</strong> di Spreadsheet).`;
+        statusEl.innerHTML = `✅ Permintaan simpan PDF terkirim ke Google Apps Script (cek folder <strong>JMS</strong> di Google Drive &amp; tab <strong>Riwayat Invoice</strong> di Spreadsheet).`;
       } catch (err) {
         statusEl.textContent = `⚠️ Gagal mengirim ke Apps Script: ${err.message}`;
       }
