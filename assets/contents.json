@@ -4,7 +4,7 @@
     "subBrand": "Pro Performance Workshop",
     "whatsapp": "6281234567890",
     "heroBg": "images/1794759372257.jpg",
-    "heroTagline": "Spesialis Perawatan, Tune-Up & Modifikasi Motor Performa Tinggi",
+    "heroTagline": "Spesialis Perawatan, Tune-Up & Modifikasi Mobil Performa Tinggi",
     "heroDeskripsi": "Ditangani oleh mekanik berpengalaman profesional dengan peralatan diagnostik modern. Menjaga tarikan mobil Anda selalu bertenaga, responsif, dan siap harian maupun balap.",
     "footerDeskripsi": "Bengkel rujukan pencinta kecepatan dan perawatan mobil harian berkualitas tinggi.",
     "jamOperasional": [
@@ -20,7 +20,7 @@
       "kode": "SRV-01",
       "nama": "Service ECU Engine & General Cek",
       "harga": "IDR 2.900.000",
-      "deskripsi": "Pemeriksaan menyeluruh ECU, sensor mesin, dan diagnostik performa kendaraan."
+      "deskripsi": "Pemeriksaan menyeluruh ECU, sensor mesin, dan diagnostik performa mobil."
     },
     {
       "kode": "PRT-02",
@@ -44,7 +44,7 @@
   "galeri": [
     {
       "judul": "Pit Servis & Diagnostik JMS",
-      "keterangan": "Penanganan teliti pada sistem mesin dan kaki-kaki kendaraan.",
+      "keterangan": "Penanganan teliti pada sistem mesin dan kaki-kaki mobil.",
       "gambar": "images/1794759372257.jpg"
     }
   ]
