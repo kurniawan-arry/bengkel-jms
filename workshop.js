@@ -1,9 +1,10 @@
 (function () {
   const GAS_URL_KEY = "jms_gas_endpoint_v1";
   const PIN_KEY = "jms_cms_admin_pin_v1";
-  const AUTH_KEY = "jms_cms_admin_auth_v1";
+  const AUTH_EXPIRY_KEY = "jms_cms_admin_expiry_v1";
   const HISTORY_KEY = "jms_invoice_history_v1";
   const DEFAULT_PIN = "123456";
+  const SESSION_DURATION_MS = 2 * 60 * 60 * 1000; // 2 Jam
   const LOGO_INVOICE_SRC = "images/JMS%20Mechanical%20Graffiti%20Sticker.png";
 
   let stateData = window.mergeJmsData({});
@@ -29,8 +30,36 @@
     return localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
   }
 
+  function startAdminSession() {
+    const expiry = Date.now() + SESSION_DURATION_MS;
+    localStorage.setItem(AUTH_EXPIRY_KEY, String(expiry));
+  }
+
+  function clearAdminSession() {
+    localStorage.removeItem(AUTH_EXPIRY_KEY);
+  }
+
+  function getRemainingSessionMs() {
+    const raw = Number(localStorage.getItem(AUTH_EXPIRY_KEY) || 0);
+    if (!raw) return 0;
+    const diff = raw - Date.now();
+    if (diff <= 0) {
+      clearAdminSession();
+      return 0;
+    }
+    return diff;
+  }
+
   function isLoggedIn() {
-    return sessionStorage.getItem(AUTH_KEY) === "true";
+    return getRemainingSessionMs() > 0;
+  }
+
+  function formatDuration(ms) {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    if (hrs > 0) return `${hrs}j ${mins}m`;
+    return `${mins}m`;
   }
 
   function esc(str) {
@@ -237,6 +266,10 @@
     return `INV-JMS-${ymd}-${rand}`;
   }
 
+  /**
+   * Membuat kloning invoice penuh dengan lebar 680px agar muat sempurna
+   * di dalam lebar cetak A4 portrait setelah margin tanpa terpotong kanan/kiri.
+   */
   function createFullInvoiceClone() {
     const sourceEl = document.getElementById("inv-preview-paper");
     if (!sourceEl) return null;
@@ -244,11 +277,15 @@
     const host = document.createElement("div");
     host.id = "jms-pdf-render-host";
     host.style.cssText =
-      "position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;z-index:-1;padding:0;margin:0;overflow:visible;";
+      "position:fixed;left:-12000px;top:0;width:680px;background:#ffffff;z-index:-1;padding:0;margin:0;overflow:visible;";
 
     const clone = sourceEl.cloneNode(true);
     clone.style.cssText =
-      "width:794px;max-width:794px;background:#ffffff;color:#0f172a;padding:28px;border:1px solid #cbd5e1;border-radius:12px;box-shadow:none;overflow:visible;height:auto;";
+      "width:680px;max-width:680px;min-width:680px;background:#ffffff;color:#0f172a;padding:18px;border:1px solid #cbd5e1;border-radius:10px;box-shadow:none;overflow:visible;height:auto;font-size:11px;line-height:1.35;";
+
+    clone.querySelectorAll("table th, table td").forEach((cell) => {
+      cell.style.padding = "6px 8px";
+    });
 
     host.appendChild(clone);
     document.body.appendChild(host);
@@ -261,7 +298,7 @@
     const { host, clone } = built;
 
     try {
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 150));
       const worker = window.html2pdf()
         .set({
           margin: [8, 8, 8, 8],
@@ -271,10 +308,13 @@
             scale: 2,
             useCORS: true,
             allowTaint: true,
+            x: 0,
+            y: 0,
             scrollX: 0,
             scrollY: 0,
-            windowWidth: 794,
-            height: clone.scrollHeight + 20
+            windowWidth: 680,
+            width: 680,
+            height: clone.scrollHeight + 16
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
         })
@@ -300,23 +340,24 @@
     modal.className = "fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm items-center justify-center p-2 sm:p-4";
     modal.innerHTML = `
       <div class="bg-white text-slate-900 w-full max-w-6xl max-h-[94vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-200">
-        <div class="bg-slate-950 text-white px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+        <div class="bg-slate-950 text-white px-6 py-4 flex items-center justify-between sticky top-0 z-20 gap-2">
           <div class="flex items-center gap-3">
             <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" class="w-10 h-10 rounded-lg object-contain bg-white p-0.5">
             <div>
               <h3 class="text-base sm:text-lg font-extrabold leading-tight">JMS Admin Console (Database Google Sheets)</h3>
-              <p class="text-[11px] text-slate-400">Perubahan otomatis tersimpan ke Google Sheets & tampil di semua perangkat tanpa export/commit GitHub</p>
+              <p class="text-[11px] text-slate-400">Sesi aktif 2 jam • Perubahan otomatis tersimpan ke Google Sheets tanpa export/commit GitHub</p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button type="button" id="cms-lock-btn" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg">Kunci PIN</button>
+          <div class="flex items-center gap-2 shrink-0">
+            <span id="cms-session-timer" class="hidden text-[11px] font-semibold bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-lg"></span>
+            <button type="button" id="cms-lock-btn" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg">Logout</button>
             <button type="button" id="jms-cms-close" class="bg-slate-800 hover:bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Tutup ✕</button>
           </div>
         </div>
 
         <div id="jms-cms-login" class="p-8 max-w-md mx-auto space-y-4">
           <h4 class="text-lg font-extrabold text-slate-900">Masuk Admin Console JMS</h4>
-          <p class="text-xs text-slate-500">Masukkan PIN Admin untuk mengelola layanan, galeri bengkel, profil, dan membuat invoice pelanggan.</p>
+          <p class="text-xs text-slate-500">Masukkan PIN Admin (sesi aktif selama 2 jam). Kelola layanan, galeri bengkel, profil, dan invoice pelanggan.</p>
           <input type="password" id="jms-cms-pin" placeholder="Masukkan PIN Admin" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-red-600">
           <p id="jms-cms-err" class="text-xs text-red-600 font-semibold hidden">PIN salah. Silakan coba lagi.</p>
           <button type="button" id="jms-cms-enter" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-sm shadow">Masuk Admin</button>
@@ -535,60 +576,60 @@
               </div>
 
               <div class="lg:col-span-6 space-y-4">
-                <div id="inv-preview-paper" class="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm text-slate-900 space-y-5">
-                  <div class="flex justify-between items-start border-b border-slate-200 pb-4 gap-3">
-                    <div class="flex items-start gap-3">
-                      <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" crossorigin="anonymous" class="w-16 h-16 object-contain rounded-lg border border-slate-200 bg-white p-1 shrink-0">
+                <div id="inv-preview-paper" class="bg-white border border-slate-300 rounded-2xl p-5 shadow-sm text-slate-900 space-y-4">
+                  <div class="flex justify-between items-start border-b border-slate-200 pb-3 gap-2">
+                    <div class="flex items-start gap-2.5">
+                      <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" crossorigin="anonymous" class="w-14 h-14 object-contain rounded-lg border border-slate-200 bg-white p-1 shrink-0">
                       <div>
                         <span class="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 px-2 py-0.5 rounded">INVOICE SERVIS & PRICELIST</span>
-                        <h4 id="prev-bengkel" class="font-extrabold text-lg text-slate-900 mt-1">Jamal Motor Sport</h4>
-                        <p id="prev-sub" class="text-xs text-slate-500">Pro Performance Workshop</p>
-                        <p id="prev-alamat" class="text-[11px] text-slate-500 mt-0.5"></p>
+                        <h4 id="prev-bengkel" class="font-extrabold text-base text-slate-900 mt-1">Jamal Motor Sport</h4>
+                        <p id="prev-sub" class="text-[11px] text-slate-500">Pro Performance Workshop</p>
+                        <p id="prev-alamat" class="text-[10px] text-slate-500 mt-0.5"></p>
                       </div>
                     </div>
                     <div class="text-right shrink-0">
                       <span class="text-[10px] font-bold text-slate-400 uppercase">NOMOR INVOICE</span>
-                      <div id="prev-no" class="font-extrabold text-sm text-slate-900">INV-JMS-001</div>
-                      <div id="prev-tgl" class="text-xs text-slate-500 mt-0.5">Tanggal: -</div>
+                      <div id="prev-no" class="font-extrabold text-xs text-slate-900">INV-JMS-001</div>
+                      <div id="prev-tgl" class="text-[11px] text-slate-500 mt-0.5">Tanggal: -</div>
                     </div>
                   </div>
 
-                  <div class="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <div class="grid grid-cols-2 gap-3 text-[11px] bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <div>
                       <span class="text-[10px] font-bold text-red-600 uppercase">DATA PELANGGAN</span>
-                      <div id="prev-nama" class="font-bold text-slate-900 mt-1">-</div>
+                      <div id="prev-nama" class="font-bold text-slate-900 mt-0.5">-</div>
                       <div id="prev-wa" class="text-slate-600">WA: -</div>
                       <div id="prev-mekanik" class="text-slate-600">Mekanik: Mas Jamal</div>
                     </div>
                     <div class="text-right">
                       <span class="text-[10px] font-bold text-red-600 uppercase">UNIT MOBIL</span>
-                      <div id="prev-mobil" class="font-bold text-slate-900 mt-1">-</div>
+                      <div id="prev-mobil" class="font-bold text-slate-900 mt-0.5">-</div>
                       <div id="prev-plat" class="text-slate-600">No. Plat: -</div>
                       <div id="prev-km" class="text-slate-600">Kilometers: -</div>
                     </div>
                   </div>
 
-                  <table class="w-full text-xs border-collapse">
+                  <table class="w-full text-[11px] border-collapse">
                     <thead>
                       <tr class="bg-slate-900 text-white">
-                        <th class="text-left py-2 px-3 rounded-tl-lg">Deskripsi Layanan / Item</th>
-                        <th class="text-center py-2 px-2">Qty</th>
-                        <th class="text-right py-2 px-3">Harga</th>
-                        <th class="text-right py-2 px-3 rounded-tr-lg">Jumlah</th>
+                        <th class="text-left py-1.5 px-2.5 rounded-tl-lg">Deskripsi Layanan / Item</th>
+                        <th class="text-center py-1.5 px-2">Qty</th>
+                        <th class="text-right py-1.5 px-2.5">Harga</th>
+                        <th class="text-right py-1.5 px-2.5 rounded-tr-lg">Jumlah</th>
                       </tr>
                     </thead>
                     <tbody id="prev-items-body" class="divide-y divide-slate-200"></tbody>
                   </table>
 
-                  <div class="flex justify-between items-start pt-2 border-t border-slate-200 text-xs">
+                  <div class="flex justify-between items-start pt-2 border-t border-slate-200 text-[11px]">
                     <div class="max-w-[55%] text-slate-500">
                       <div id="prev-catatan" class="italic"></div>
-                      <p class="mt-2 text-[11px]">Terima kasih telah mempercayakan perawatan mobil Anda di JMS.</p>
+                      <p class="mt-1.5 text-[10px]">Terima kasih telah mempercayakan perawatan mobil Anda di JMS.</p>
                     </div>
                     <div class="text-right space-y-1">
                       <div class="text-slate-600">Subtotal: <strong id="prev-subtotal">Rp 0</strong></div>
                       <div class="text-slate-600">Diskon: <strong id="prev-diskon">- Rp 0</strong></div>
-                      <div class="text-sm font-extrabold text-red-600 pt-1 border-t border-slate-200">
+                      <div class="text-xs font-extrabold text-red-600 pt-1 border-t border-slate-200">
                         TOTAL TAGIHAN: <span id="prev-total">Rp 0</span>
                       </div>
                     </div>
@@ -599,10 +640,9 @@
                   <div class="text-xs font-extrabold text-slate-700">Kirim Pelanggan & Simpan ke Google Drive</div>
                   <button type="button" id="inv-gen-pdf-and-wa" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Generate &amp; Unduh Lampiran PDF + Kirim WA Pelanggan</button>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <button type="button" id="inv-send-wa" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Kirim Rincian ke No. WA</button>
                     <button type="button" id="inv-save-drive" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Simpan ke Google Drive</button>
+                    <button type="button" id="inv-download-pdf" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Cetak / Download PDF Invoice</button>
                   </div>
-                  <button type="button" id="inv-download-pdf" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Cetak / Download PDF Invoice</button>
                   <p id="inv-drive-status" class="text-xs text-slate-600"></p>
                 </div>
 
@@ -635,8 +675,34 @@
     `;
     document.body.appendChild(modal);
 
+    function updateSessionUi() {
+      const timerEl = document.getElementById("cms-session-timer");
+      const lockBtn = document.getElementById("cms-lock-btn");
+      const rem = getRemainingSessionMs();
+      if (rem > 0) {
+        if (timerEl) {
+          timerEl.textContent = `Sesi: ${formatDuration(rem)}`;
+          timerEl.classList.remove("hidden");
+        }
+        if (lockBtn) lockBtn.classList.remove("hidden");
+      } else {
+        if (timerEl) timerEl.classList.add("hidden");
+        if (lockBtn) lockBtn.classList.add("hidden");
+        if (!modal.classList.contains("hidden")) {
+          document.getElementById("jms-cms-login").classList.remove("hidden");
+          document.getElementById("jms-cms-editor").classList.add("hidden");
+        }
+      }
+    }
+
+    setInterval(updateSessionUi, 30000);
+
     modal.querySelectorAll(".jms-tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
+        if (!isLoggedIn()) {
+          refreshConsoleAuth();
+          return;
+        }
         modal.querySelectorAll(".jms-tab-btn").forEach((b) => {
           b.className = "jms-tab-btn bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm";
         });
@@ -656,16 +722,15 @@
     function refreshConsoleAuth() {
       const lBox = document.getElementById("jms-cms-login");
       const eBox = document.getElementById("jms-cms-editor");
-      const lockBtn = document.getElementById("cms-lock-btn");
       if (isLoggedIn()) {
         lBox.classList.add("hidden");
         eBox.classList.remove("hidden");
-        lockBtn.classList.remove("hidden");
+        updateSessionUi();
         hydrateAllTabs();
       } else {
         lBox.classList.remove("hidden");
         eBox.classList.add("hidden");
-        lockBtn.classList.add("hidden");
+        updateSessionUi();
       }
     }
 
@@ -987,10 +1052,10 @@
           const jumlah = Number(it.qty || 0) * Number(it.harga || 0);
           return `
             <tr>
-              <td class="py-2 px-3">${esc(it.nama)}</td>
-              <td class="py-2 px-2 text-center">${it.qty}</td>
-              <td class="py-2 px-3 text-right">${window.formatRupiahIdr(it.harga)}</td>
-              <td class="py-2 px-3 text-right font-bold">${window.formatRupiahIdr(jumlah)}</td>
+              <td class="py-1.5 px-2.5">${esc(it.nama)}</td>
+              <td class="py-1.5 px-2 text-center">${it.qty}</td>
+              <td class="py-1.5 px-2.5 text-right">${window.formatRupiahIdr(it.harga)}</td>
+              <td class="py-1.5 px-2.5 text-right font-bold">${window.formatRupiahIdr(jumlah)}</td>
             </tr>
           `;
         })
@@ -1026,10 +1091,34 @@
       updateInvoicePreview();
     });
 
+    /**
+     * Mencatat 1 log riwayat per transaksi invoice dan mencegah duplikasi log
+     * untuk nomor invoice & total yang sama dalam 5 detik.
+     */
     function recordInvoiceLog(driveUrl) {
       const { total } = calcInvoiceTotals();
+      const noInv = document.getElementById("inv-no").value.trim();
+      const nowMs = Date.now();
+      const hist = getHistory();
+
+      const top = hist[0];
+      if (
+        top &&
+        top.noInvoice === noInv &&
+        Number(top.total) === Number(total) &&
+        nowMs - Number(top._ts || 0) < 5000
+      ) {
+        if (driveUrl && !top.driveUrl) {
+          top.driveUrl = driveUrl;
+          saveHistory(hist);
+          renderInvoiceHistory();
+        }
+        return;
+      }
+
       const entry = {
-        noInvoice: document.getElementById("inv-no").value.trim(),
+        _ts: nowMs,
+        noInvoice: noInv,
         tanggal: document.getElementById("inv-tgl").value,
         pelanggan: document.getElementById("inv-nama").value.trim() || "Pelanggan",
         mobil: document.getElementById("inv-mobil").value.trim(),
@@ -1037,7 +1126,6 @@
         total,
         driveUrl: driveUrl || ""
       };
-      const hist = getHistory();
       hist.unshift(entry);
       saveHistory(hist.slice(0, 50));
       renderInvoiceHistory();
@@ -1116,46 +1204,6 @@
 
       recordInvoiceLog("");
       const pesan = buildCustomerInvoiceWaMessage();
-      window.open(`https://wa.me/${waTarget}?text=${encodeURIComponent(pesan)}`, "_blank");
-    });
-
-    document.getElementById("inv-send-wa").addEventListener("click", () => {
-      const waTarget = String(document.getElementById("inv-wa").value || "").replace(/\D/g, "");
-      if (!waTarget) {
-        alert("Masukkan No. WA Pelanggan terlebih dahulu (contoh: 62812...).");
-        return;
-      }
-      const noInv = document.getElementById("inv-no").value.trim();
-      const tgl = document.getElementById("inv-tgl").value;
-      const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
-      const mobil = document.getElementById("inv-mobil").value.trim() || "-";
-      const plat = document.getElementById("inv-plat").value.trim() || "-";
-      const { subtotal, diskon, total } = calcInvoiceTotals();
-
-      const lines = invoiceItems.map(
-        (it, i) => `${i + 1}. ${it.nama} (${it.qty}x) = ${window.formatRupiahIdr(it.qty * it.harga)}`
-      );
-
-      const pesan = [
-        `*INVOICE SERVIS - ${stateData.meta.namaBengkel.toUpperCase()}*`,
-        `No. Invoice: *${noInv}*`,
-        `Tanggal: ${tgl}`,
-        `Pelanggan: ${nama}`,
-        `Unit Mobil: ${mobil} (${plat})`,
-        ``,
-        `*Rincian Pekerjaan:*`,
-        ...lines,
-        ``,
-        `Subtotal: ${window.formatRupiahIdr(subtotal)}`,
-        diskon > 0 ? `Diskon: -${window.formatRupiahIdr(diskon)}` : "",
-        `*TOTAL TAGIHAN: ${window.formatRupiahIdr(total)}*`,
-        ``,
-        `Terima kasih telah mempercayakan perawatan mobil Anda di ${stateData.meta.namaBengkel}.`
-      ]
-        .filter((v, idx, arr) => !(v === "" && arr[idx - 1] === ""))
-        .join("\n");
-
-      recordInvoiceLog("");
       window.open(`https://wa.me/${waTarget}?text=${encodeURIComponent(pesan)}`, "_blank");
     });
 
@@ -1241,14 +1289,14 @@
       modal.classList.remove("flex");
     });
     document.getElementById("cms-lock-btn").addEventListener("click", () => {
-      sessionStorage.removeItem(AUTH_KEY);
+      clearAdminSession();
       refreshConsoleAuth();
     });
     document.getElementById("jms-cms-enter").addEventListener("click", () => {
       const val = document.getElementById("jms-cms-pin").value.trim();
       const err = document.getElementById("jms-cms-err");
       if (val === getPin()) {
-        sessionStorage.setItem(AUTH_KEY, "true");
+        startAdminSession();
         err.classList.add("hidden");
         document.getElementById("jms-cms-pin").value = "";
         refreshConsoleAuth();
