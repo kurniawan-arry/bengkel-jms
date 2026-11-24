@@ -4,6 +4,7 @@
   const AUTH_KEY = "jms_cms_admin_auth_v1";
   const HISTORY_KEY = "jms_invoice_history_v1";
   const DEFAULT_PIN = "123456";
+  const LOGO_INVOICE_SRC = "images/JMS%20Mechanical%20Graffiti%20Sticker.png";
 
   let stateData = window.mergeJmsData({});
   let editingServiceIdx = -1;
@@ -95,7 +96,7 @@
       await fetch(endpoint, {
         method: "POST",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           action: "save_cms_all",
           meta: stateData.meta,
@@ -205,7 +206,7 @@
           fetch(endpoint, {
             method: "POST",
             mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({ nama, mobil, layanan, kodePerbaikan, status: "Antri" })
           });
         } catch (_) {}
@@ -236,6 +237,60 @@
     return `INV-JMS-${ymd}-${rand}`;
   }
 
+  /**
+   * Membuat elemen kloning invoice penuh di luar modal agar hasil cetak/PDF
+   * tidak terpotong oleh scroll/max-height modal.
+   */
+  function createFullInvoiceClone() {
+    const sourceEl = document.getElementById("inv-preview-paper");
+    if (!sourceEl) return null;
+
+    const host = document.createElement("div");
+    host.id = "jms-pdf-render-host";
+    host.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;z-index:-1;padding:0;margin:0;overflow:visible;";
+
+    const clone = sourceEl.cloneNode(true);
+    clone.style.cssText =
+      "width:794px;max-width:794px;background:#ffffff;color:#0f172a;padding:28px;border:1px solid #cbd5e1;border-radius:12px;box-shadow:none;overflow:visible;height:auto;";
+
+    host.appendChild(clone);
+    document.body.appendChild(host);
+    return { host, clone };
+  }
+
+  async function renderPdfWorker(filename) {
+    const built = createFullInvoiceClone();
+    if (!built) return null;
+    const { host, clone } = built;
+
+    try {
+      await new Promise((r) => setTimeout(r, 120));
+      const worker = window.html2pdf()
+        .set({
+          margin: [8, 8, 8, 8],
+          filename: filename,
+          image: { type: "jpeg", quality: 0.96 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: 794,
+            height: clone.scrollHeight + 20
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+        })
+        .from(clone);
+
+      return { worker, host };
+    } catch (err) {
+      if (host && host.parentNode) host.parentNode.removeChild(host);
+      throw err;
+    }
+  }
+
   function initAdmin() {
     const trigger = document.createElement("button");
     trigger.type = "button";
@@ -251,7 +306,7 @@
       <div class="bg-white text-slate-900 w-full max-w-6xl max-h-[94vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-200">
         <div class="bg-slate-950 text-white px-6 py-4 flex items-center justify-between sticky top-0 z-20">
           <div class="flex items-center gap-3">
-            <div class="bg-red-600 text-white font-black text-sm px-2.5 py-1.5 rounded-lg">JMS</div>
+            <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" class="w-10 h-10 rounded-lg object-contain bg-white p-0.5">
             <div>
               <h3 class="text-base sm:text-lg font-extrabold leading-tight">JMS Admin Console (Database Google Sheets)</h3>
               <p class="text-[11px] text-slate-400">Perubahan otomatis tersimpan ke Google Sheets & tampil di semua perangkat tanpa export/commit GitHub</p>
@@ -485,9 +540,9 @@
 
               <div class="lg:col-span-6 space-y-4">
                 <div id="inv-preview-paper" class="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm text-slate-900 space-y-5">
-                  <div class="flex justify-between items-start border-b border-slate-200 pb-4">
+                  <div class="flex justify-between items-start border-b border-slate-200 pb-4 gap-3">
                     <div class="flex items-start gap-3">
-                      <div class="bg-red-600 text-white font-black text-base px-3 py-2 rounded-lg">JMS</div>
+                      <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" crossorigin="anonymous" class="w-16 h-16 object-contain rounded-lg border border-slate-200 bg-white p-1 shrink-0">
                       <div>
                         <span class="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 px-2 py-0.5 rounded">INVOICE SERVIS & PRICELIST</span>
                         <h4 id="prev-bengkel" class="font-extrabold text-lg text-slate-900 mt-1">Jamal Motor Sport</h4>
@@ -495,7 +550,7 @@
                         <p id="prev-alamat" class="text-[11px] text-slate-500 mt-0.5"></p>
                       </div>
                     </div>
-                    <div class="text-right">
+                    <div class="text-right shrink-0">
                       <span class="text-[10px] font-bold text-slate-400 uppercase">NOMOR INVOICE</span>
                       <div id="prev-no" class="font-extrabold text-sm text-slate-900">INV-JMS-001</div>
                       <div id="prev-tgl" class="text-xs text-slate-500 mt-0.5">Tanggal: -</div>
@@ -548,7 +603,7 @@
                   <div class="text-xs font-extrabold text-slate-700">Kirim Pelanggan & Simpan ke Google Drive</div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <button type="button" id="inv-send-wa" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Kirim Invoice ke No. WA Pelanggan</button>
-                    <button type="button" id="inv-save-drive" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Simpan PDF ke Google Drive</button>
+                    <button type="button" id="inv-save-drive" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Simpan ke Google Drive</button>
                   </div>
                   <button type="button" id="inv-download-pdf" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Cetak / Download PDF Invoice</button>
                   <p id="inv-drive-status" class="text-xs text-slate-600"></p>
@@ -1058,22 +1113,18 @@
       window.open(`https://wa.me/${waTarget}?text=${encodeURIComponent(pesan)}`, "_blank");
     });
 
-    document.getElementById("inv-download-pdf").addEventListener("click", () => {
-      const element = document.getElementById("inv-preview-paper");
+    document.getElementById("inv-download-pdf").addEventListener("click", async () => {
       const noInv = document.getElementById("inv-no").value.trim() || "INV-JMS";
       const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
+      const filename = `${noInv} - ${nama}.pdf`;
+
       if (window.html2pdf) {
-        window.html2pdf()
-          .set({
-            margin: 10,
-            filename: `${noInv} - ${nama}.pdf`,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-          })
-          .from(element)
-          .save();
-        recordInvoiceLog("");
+        const built = await renderPdfWorker(filename);
+        if (built) {
+          await built.worker.save();
+          if (built.host && built.host.parentNode) built.host.parentNode.removeChild(built.host);
+          recordInvoiceLog("");
+        }
       } else {
         window.print();
       }
@@ -1087,30 +1138,26 @@
         return;
       }
 
-      statusEl.textContent = "⏳ Sedang membuat PDF & menyimpan ke folder JMS Google Drive...";
+      statusEl.textContent = "⏳ Sedang membuat PDF penuh & mengirim ke Google Drive (folder JMS)...";
       const noInv = document.getElementById("inv-no").value.trim() || "INV-JMS";
       const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
       const { total } = calcInvoiceTotals();
 
       let pdfBase64 = "";
       if (window.html2pdf) {
-        const element = document.getElementById("inv-preview-paper");
-        const dataUri = await window.html2pdf()
-          .set({
-            margin: 10,
-            filename: `${noInv} - ${nama}.pdf`,
-            image: { type: "jpeg", quality: 0.95 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-          })
-          .from(element)
-          .outputPdf("datauristring");
-        pdfBase64 = dataUri.split(",")[1] || "";
+        const built = await renderPdfWorker(`${noInv} - ${nama}.pdf`);
+        if (built) {
+          const dataUri = await built.worker.outputPdf("datauristring");
+          if (built.host && built.host.parentNode) built.host.parentNode.removeChild(built.host);
+          pdfBase64 = dataUri.split(",")[1] || "";
+        }
       }
 
       try {
-        const resp = await fetch(gasUrl, {
+        await fetch(gasUrl, {
           method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({
             action: "save_invoice_pdf",
             noInvoice: noInv,
@@ -1123,15 +1170,11 @@
             pdfBase64: pdfBase64
           })
         });
-        const resJson = await resp.json();
-        if (resJson && resJson.status === "ok") {
-          statusEl.innerHTML = `✅ Tersimpan di Google Drive! <a href="${esc(resJson.fileUrl)}" target="_blank" class="font-bold text-blue-600 underline">Lihat File PDF ↗</a>`;
-          recordInvoiceLog(resJson.fileUrl);
-        } else {
-          statusEl.textContent = `⚠️ Gagal simpan ke Drive: ${resJson.message || "Cek deployment Apps Script"}`;
-        }
+
+        recordInvoiceLog("");
+        statusEl.innerHTML = `✅ Permintaan simpan PDF terkirim ke Google Apps Script (cek folder <strong>JMS</strong> di Google Drive & tab <strong>Riwayat Invoice</strong> di Spreadsheet).`;
       } catch (err) {
-        statusEl.textContent = `⚠️ Gagal terhubung ke Apps Script: ${err.message}`;
+        statusEl.textContent = `⚠️ Gagal mengirim ke Apps Script: ${err.message}`;
       }
     });
 
