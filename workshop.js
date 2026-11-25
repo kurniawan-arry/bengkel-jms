@@ -5,7 +5,7 @@
   const HISTORY_KEY = "jms_invoice_history_v1";
   const DEFAULT_WA_NUMBER = "6281286276830";
   const DEFAULT_PIN = "123456";
-  const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwhZnM1-ALdxz83s_ZtKqt_pUpHnDw-Ob4-7GCKa0GcVV2zob1sVOBtDQESEx_ywKPw/exec";
+  const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbzvl7cde3G4tn09hkd7YnLEgGrBE0fTLlXFQBHgRQCDQSVNAFwwxaE2WrZ3p4-70wuH/exec";
   const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 Menit
   const MAX_DRIVE_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB untuk Google Drive
   const LOGO_INVOICE_SRC = "images/JMS%20Mechanical%20Graffiti%20Sticker.png";
