@@ -3,17 +3,20 @@
   const PIN_KEY = "jms_cms_admin_pin_v1";
   const AUTH_EXPIRY_KEY = "jms_cms_admin_expiry_v1";
   const HISTORY_KEY = "jms_invoice_history_v1";
+  const DEFAULT_WA_NUMBER = "6281286276830";
   const DEFAULT_PIN = "123456";
+  const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwnKzWnBUttZx9vBRPhX1IvWUYEDIx8RjK7DpIADWojxJeTWWggbrVe80MosjIv4sCe/exec";
   const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 Menit
   const MAX_DRIVE_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB untuk Google Drive
   const LOGO_INVOICE_SRC = "images/JMS%20Mechanical%20Graffiti%20Sticker.png";
   const FALLBACK_IMG_SRC = "images/1794759372257.jpg";
-  const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxKZ_w_LhKZ9s0KOoI5LpopgJBlomjukaTyURLI4RyUlrRs4tkyPvn-wnAWYXSXVqo8/exec"
+  const DEFAULT_MAPS_QUERY = "Jl. Jabal Mina Raya No.18, Kelapa Dua, Kecamatan Kelapa Dua, Kabupaten Tangerang, Banten 15810";
 
   let stateData = window.mergeJmsData({});
   let editingServiceIdx = -1;
   let invoiceItems = [];
   let pendingGalleryUpload = null;
+  let activeAdminPin = DEFAULT_PIN;
 
   function getGasUrl() {
     return (
@@ -32,7 +35,16 @@
   }
 
   function getPin() {
-    return localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
+    return String(activeAdminPin || localStorage.getItem(PIN_KEY) || DEFAULT_PIN).trim();
+  }
+
+  function syncPinToSheetsMeta(pinValue) {
+    const cleanPin = String(pinValue || "").trim();
+    if (!cleanPin) return;
+    activeAdminPin = cleanPin;
+    localStorage.setItem(PIN_KEY, cleanPin);
+    if (!stateData.meta) stateData.meta = {};
+    stateData.meta.adminPin = cleanPin;
   }
 
   function startAdminSession() {
@@ -106,8 +118,17 @@
             ? json.galeri
             : stateData.galeri;
 
+        const sheetPin = json.meta && json.meta.adminPin ? String(json.meta.adminPin).trim() : "";
+        if (sheetPin) {
+          activeAdminPin = sheetPin;
+          localStorage.setItem(PIN_KEY, sheetPin);
+        }
+
         const merged = window.mergeJmsData({
-          meta: Object.assign({}, json.meta || {}, { appsScriptUrl: endpoint }),
+          meta: Object.assign({}, json.meta || {}, {
+            appsScriptUrl: endpoint,
+            adminPin: getPin()
+          }),
           layanan: nextLayanan,
           galeri: nextGaleri
         });
@@ -132,6 +153,9 @@
       alert("Isi terlebih dahulu 'URL Web App Google Apps Script' di Tab 2 (Profil Bengkel & WA).");
       return false;
     }
+
+    if (!stateData.meta) stateData.meta = {};
+    stateData.meta.adminPin = getPin();
 
     try {
       await fetch(endpoint, {
@@ -177,10 +201,14 @@
     if (footerAlamat) footerAlamat.textContent = m.alamat;
     if (footerTelp) footerTelp.textContent = m.telepon;
 
-    const defaultMapsQuery = "Jl. Jabal Mina Raya No.18, Kelapa Dua, Kecamatan Kelapa Dua, Kabupaten Tangerang, Banten 15810";
+    const cleanWa = String(m.whatsapp || DEFAULT_WA_NUMBER).replace(/\D/g, "");
+    if (navWa && cleanWa) {
+      navWa.href = `https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${m.namaBengkel}, saya ingin konsultasi servis mobil.`)}`;
+    }
+
     const mapsQuery = String(m.alamat || "")
       .replace(/^📍\s*/, "")
-      .trim() || defaultMapsQuery;
+      .trim() || DEFAULT_MAPS_QUERY;
     const gmapsBtn = document.getElementById("btn-buka-gmaps");
     if (gmapsBtn) {
       gmapsBtn.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
@@ -188,11 +216,6 @@
 
     if (heroSec && m.heroBg) {
       heroSec.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('${m.heroBg}')`;
-    }
-
-    const cleanWa = String(m.whatsapp || "").replace(/\D/g, "");
-    if (navWa && cleanWa) {
-      navWa.href = `https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${m.namaBengkel}, saya ingin konsultasi servis mobil.`)}`;
     }
 
     if (footerJam && Array.isArray(m.jamOperasional)) {
@@ -261,8 +284,8 @@
           });
         } catch (_) {}
       }
-
-      const cleanWa = String(stateData.meta.whatsapp || "").replace(/\D/g, "");
+      
+      const cleanWa = String(stateData.meta.whatsapp || DEFAULT_WA_NUMBER).replace(/\D/g, "");
       const msg = [
         `Halo *${stateData.meta.namaBengkel}*, saya ingin booking servis mobil:`,
         `• Nama: ${nama}`,
@@ -430,7 +453,7 @@
             <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" class="w-10 h-10 rounded-lg object-contain bg-white p-0.5">
             <div>
               <h3 class="text-base sm:text-lg font-extrabold leading-tight">JMS Admin Console (Database Google Sheets)</h3>
-              <p class="text-[11px] text-slate-400">Perubahan tersimpan ke Google Sheets</p>
+              <p class="text-[11px] text-slate-400">Perubahan &amp; PIN tersinkronisasi ke Google Sheets &amp; Drive lintas perangkat</p>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -441,7 +464,7 @@
 
         <div id="jms-cms-login" class="p-8 max-w-md mx-auto space-y-4">
           <h4 class="text-lg font-extrabold text-slate-900">Masuk Admin Console JMS</h4>
-          <p class="text-xs text-slate-500">Masukkan PIN Admin (sesi aktif 10 menit). Kelola layanan, galeri bengkel, profil, dan invoice pelanggan.</p>
+          <p class="text-xs text-slate-500">Masukkan PIN Admin (sesi aktif 10 menit, dan otomatis terkunci saat ditutup). PIN tersinkronisasi lewat Google Sheets.</p>
           <input type="password" id="jms-cms-pin" placeholder="Masukkan PIN Admin" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-red-600">
           <p id="jms-cms-err" class="text-xs text-red-600 font-semibold hidden">PIN salah. Silakan coba lagi.</p>
           <button type="button" id="jms-cms-enter" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-sm shadow">Masuk Admin</button>
@@ -538,7 +561,7 @@
           <!-- TAB 2 -->
           <div id="tab-2" class="jms-tab-pane hidden">
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-4xl space-y-4">
-              <h4 class="font-extrabold text-slate-900 text-base">Pengaturan Profil Jamal Motor Sport &amp; WhatsApp</h4>
+              <h4 class="font-extrabold text-slate-900 text-base">Pengaturan Profil Jamal Motor Sport, WhatsApp &amp; PIN Lintas Perangkat</h4>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Nama Bengkel *</label>
@@ -577,11 +600,11 @@
                   <input type="text" id="prof-gas" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm">
                 </div>
                 <div class="sm:col-span-2">
-                  <label class="block text-xs font-bold text-slate-700 mb-1">PIN Admin Baru (Kosongkan jika tetap)</label>
-                  <input type="password" id="prof-pin" placeholder="Biarkan kosong untuk mempertahankan PIN saat ini" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm">
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Ganti PIN Admin (Sinkron ke Google Sheets untuk HP &amp; Laptop)</label>
+                  <input type="password" id="prof-pin" placeholder="Kosongkan jika tidak ingin mengganti PIN saat ini" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm">
                 </div>
               </div>
-              <button type="button" id="prof-save-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm shadow">Simpan Profil ke Google Sheets</button>
+              <button type="button" id="prof-save-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm shadow">Simpan Profil &amp; PIN ke Google Sheets</button>
             </div>
           </div>
 
@@ -753,7 +776,7 @@
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-2xl space-y-4">
               <h4 class="font-extrabold text-slate-900 text-base">Sinkronisasi Langsung ke Google Sheets</h4>
               <p class="text-xs text-slate-600 leading-relaxed">
-                Semua perubahan Layanan, Galeri, dan Profil Bengkel disimpan ke tab <code>CMS_Profil</code>, <code>Pricelist</code>, dan <code>CMS_Galeri</code> pada Google Sheets dan otomatis terbaca di semua perangkat/pengunjung.
+                Semua perubahan Layanan, Galeri, Profil Bengkel, dan PIN Admin disimpan ke Google Sheets dan otomatis terbaca di semua perangkat/pengunjung.
               </p>
               <div class="flex flex-wrap gap-3">
                 <button type="button" id="cms-push-sheets" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">Push Semua Perubahan ke Google Sheets</button>
@@ -798,9 +821,12 @@
       });
     });
 
-    function openModal() {
+    async function openModal() {
       modal.classList.remove("hidden");
       modal.classList.add("flex");
+      if (!isLoggedIn() && getGasUrl()) {
+        await loadCmsFromSheets();
+      }
       refreshConsoleAuth();
     }
 
@@ -1060,7 +1086,7 @@
     function fillProfileForm() {
       const m = stateData.meta;
       document.getElementById("prof-nama").value = m.namaBengkel || "";
-      document.getElementById("prof-wa").value = m.whatsapp || "";
+      document.getElementById("prof-wa").value = m.whatsapp || DEFAULT_WA_NUMBER;
       document.getElementById("prof-sub").value = m.subBrand || "";
       document.getElementById("prof-telp").value = m.telepon || "";
       document.getElementById("prof-tagline").value = m.heroTagline || "";
@@ -1075,7 +1101,7 @@
       setGasUrl(gasInput);
 
       stateData.meta.namaBengkel = document.getElementById("prof-nama").value.trim();
-      stateData.meta.whatsapp = document.getElementById("prof-wa").value.trim();
+      stateData.meta.whatsapp = document.getElementById("prof-wa").value.trim() || DEFAULT_WA_NUMBER;
       stateData.meta.subBrand = document.getElementById("prof-sub").value.trim();
       stateData.meta.telepon = document.getElementById("prof-telp").value.trim();
       stateData.meta.heroTagline = document.getElementById("prof-tagline").value.trim();
@@ -1093,13 +1119,17 @@
           alert("PIN minimal 4 karakter.");
           return;
         }
-        localStorage.setItem(PIN_KEY, newPin);
+        syncPinToSheetsMeta(newPin);
         document.getElementById("prof-pin").value = "";
+      } else {
+        syncPinToSheetsMeta(getPin());
       }
 
       const ok = await saveCmsToSheets();
       updateInvoicePreview();
-      if (ok) alert("Profil bengkel tersimpan ke Google Sheets & otomatis aktif di semua perangkat.");
+      if (ok) {
+        alert("Profil & PIN Admin tersimpan ke Google Sheets dan otomatis sinkron lintas perangkat.");
+      }
     });
 
     function populateInvoicePricelistDropdown() {
@@ -1311,7 +1341,7 @@
         `Halo ${namaPelanggan}`,
         ``,
         `Terima kasih telah memilih Jamal Motor Sport (JMS) sebagai bengkel kepercayaan anda.`,
-        `Berikut Lampiran Invoice yang kami lampirkan ke anda.`,
+        `Berikut Invoice yang kami lampirkan ke anda.`,
         ``,
         `Nomor Invoice`,
         `#${noInv}`,
@@ -1319,7 +1349,7 @@
         `Tips:`,
         `-   Gunakan metode Pembayaran Instan (Virtual Account dan Transfer).`,
         `-   Anda wajib melakukan konfirmasi melalui wa.link/jp3ufp apabila menggunakan Metode Pembayaran Manual.`,
-        `-  Berikut No. Rekening 8831665246 BCA a.n Damaris Butar Butar`,
+        `-   Berikut No. Rekening 8831665246 BCA a.n Damaris Butar Butar`,
         ``,
         `Salam JMS,`,
         `Terima Kasih`
@@ -1419,13 +1449,13 @@
 
     document.getElementById("cms-push-sheets").addEventListener("click", async () => {
       const ok = await saveCmsToSheets();
-      if (ok) alert("Semua data CMS berhasil dikirim ke Google Sheets.");
+      if (ok) alert("Semua data CMS (termasuk PIN) berhasil dikirim ke Google Sheets.");
     });
 
     document.getElementById("cms-pull-sheets").addEventListener("click", async () => {
       await loadCmsFromSheets();
       hydrateAllTabs();
-      alert("Data terbaru berhasil dimuat dari Google Sheets.");
+      alert("Data & PIN terbaru berhasil dimuat dari Google Sheets.");
     });
 
     trigger.addEventListener("click", openModal);

@@ -3,8 +3,9 @@
   const PIN_KEY = "jms_cms_admin_pin_v1";
   const AUTH_EXPIRY_KEY = "jms_cms_admin_expiry_v1";
   const HISTORY_KEY = "jms_invoice_history_v1";
+  const DEFAULT_WA_NUMBER = "6281286276830";
   const DEFAULT_PIN = "123456";
-  const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwnKzWnBUttZx9vBRPhX1IvWUYEDIx8RjK7DpIADWojxJeTWWggbrVe80MosjIv4sCe/exec";
+  const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwhZnM1-ALdxz83s_ZtKqt_pUpHnDw-Ob4-7GCKa0GcVV2zob1sVOBtDQESEx_ywKPw/exec";
   const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 Menit
   const MAX_DRIVE_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB untuk Google Drive
   const LOGO_INVOICE_SRC = "images/JMS%20Mechanical%20Graffiti%20Sticker.png";
@@ -18,12 +19,10 @@
   let activeAdminPin = DEFAULT_PIN;
 
   function getGasUrl() {
-    return (
-      localStorage.getItem(GAS_URL_KEY) ||
-      (stateData && stateData.meta && stateData.meta.appsScriptUrl) ||
-      DEFAULT_GAS_URL ||
-      ""
-    ).trim();
+    const stored = String(localStorage.getItem(GAS_URL_KEY) || "").trim();
+    const metaUrl = String((stateData && stateData.meta && stateData.meta.appsScriptUrl) || "").trim();
+    const fallback = String(DEFAULT_GAS_URL || "").trim();
+    return stored || metaUrl || fallback;
   }
 
   function setGasUrl(url) {
@@ -200,6 +199,11 @@
     if (footerAlamat) footerAlamat.textContent = m.alamat;
     if (footerTelp) footerTelp.textContent = m.telepon;
 
+    const cleanWa = String(m.whatsapp || DEFAULT_WA_NUMBER).replace(/\D/g, "");
+    if (navWa && cleanWa) {
+      navWa.href = `https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${m.namaBengkel}, saya ingin konsultasi servis mobil.`)}`;
+    }
+
     const mapsQuery = String(m.alamat || "")
       .replace(/^📍\s*/, "")
       .trim() || DEFAULT_MAPS_QUERY;
@@ -210,11 +214,6 @@
 
     if (heroSec && m.heroBg) {
       heroSec.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('${m.heroBg}')`;
-    }
-
-    const cleanWa = String(m.whatsapp || "").replace(/\D/g, "");
-    if (navWa && cleanWa) {
-      navWa.href = `https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${m.namaBengkel}, saya ingin konsultasi servis mobil.`)}`;
     }
 
     if (footerJam && Array.isArray(m.jamOperasional)) {
@@ -284,7 +283,7 @@
         } catch (_) {}
       }
 
-      const cleanWa = String(stateData.meta.whatsapp || "").replace(/\D/g, "");
+      const cleanWa = String(stateData.meta.whatsapp || DEFAULT_WA_NUMBER).replace(/\D/g, "");
       const msg = [
         `Halo *${stateData.meta.namaBengkel}*, saya ingin booking servis mobil:`,
         `• Nama: ${nama}`,
@@ -655,132 +654,96 @@
                     <input type="text" id="inv-km" placeholder="Cth: 45.000 km" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
                   </div>
                   <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Mekanik</label>
-                    <input type="text" id="inv-mekanik" value="Mas Jamal" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Item Pricelist</label>
+                    <div class="flex gap-2">
+                      <select id="inv-price-select" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-xs"></select>
+                      <button type="button" id="inv-add-price-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-2 rounded-lg text-xs shrink-0">+ Tambah</button>
+                    </div>
                   </div>
                 </div>
 
-                <div class="bg-red-50 border border-red-200 rounded-xl p-3 flex flex-col sm:flex-row gap-2">
-                  <select id="inv-pricelist-select" class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs"></select>
-                  <button type="button" id="inv-add-from-pricelist" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3.5 py-2 rounded-lg text-xs whitespace-nowrap">+ Masukkan dari Pricelist</button>
+                <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+                  <p class="text-xs font-bold text-slate-700">Tambah Item Jasa / Sparepart Custom</p>
+                  <div class="grid grid-cols-12 gap-2">
+                    <input type="text" id="inv-custom-nama" placeholder="Nama item / jasa" class="col-span-6 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                    <input type="number" id="inv-custom-qty" value="1" min="1" placeholder="Qty" class="col-span-2 border border-slate-300 rounded-lg px-2 py-1.5 text-xs">
+                    <input type="number" id="inv-custom-harga" placeholder="Harga" class="col-span-4 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                  </div>
+                  <button type="button" id="inv-add-custom-btn" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-1.5 rounded-lg text-xs border border-slate-300">+ Tambah Item Custom</button>
                 </div>
 
-                <div class="space-y-2">
-                  <div class="grid grid-cols-12 gap-2 text-[11px] font-bold text-slate-600 px-1">
-                    <span class="col-span-5">Item / Jasa</span>
-                    <span class="col-span-2">Qty</span>
-                    <span class="col-span-3">Harga (Rp)</span>
-                    <span class="col-span-2 text-right">Hapus</span>
-                  </div>
-                  <div id="inv-items-editor" class="space-y-2"></div>
-                  <button type="button" id="inv-add-custom" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3.5 py-2 rounded-lg text-xs">+ Tambah Baris Item Custom</button>
-                </div>
+                <div id="inv-items-list" class="space-y-1.5 max-h-40 overflow-y-auto"></div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Diskon (Rp)</label>
-                    <input type="number" id="inv-diskon" value="0" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
-                  </div>
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Catatan Invoice</label>
-                    <input type="text" id="inv-catatan" placeholder="Cth: Garansi pengerjaan 14 hari" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
-                  </div>
+                <div class="flex flex-wrap gap-2 pt-2">
+                  <button type="button" id="inv-save-pdf-drive-btn" class="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow">Simpan PDF ke Drive &amp; Riwayat</button>
+                  <button type="button" id="inv-download-pdf-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-3 rounded-xl text-xs">Download PDF</button>
+                  <button type="button" id="inv-send-wa-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs">Kirim WA</button>
                 </div>
               </div>
 
-              <div class="lg:col-span-6 space-y-4">
-                <div id="inv-preview-paper" class="bg-white border border-slate-300 rounded-2xl p-5 shadow-sm text-slate-900 space-y-4">
-                  <div class="flex justify-between items-start border-b border-slate-200 pb-3 gap-2">
-                    <div class="flex items-start gap-2.5">
-                      <img src="${LOGO_INVOICE_SRC}" alt="Logo JMS" crossorigin="anonymous" class="w-14 h-14 object-contain rounded-lg border border-slate-200 bg-white p-1 shrink-0">
+              <div class="lg:col-span-6 bg-slate-100 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
+                <div id="inv-preview-paper" class="bg-white text-slate-900 p-5 rounded-xl border border-slate-300 shadow-sm space-y-4 min-w-[460px]">
+                  <div class="flex items-start justify-between border-b border-slate-200 pb-3">
+                    <div class="flex items-center gap-3">
+                      <img src="${LOGO_INVOICE_SRC}" alt="JMS" class="w-12 h-12 object-contain">
                       <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 px-2 py-0.5 rounded">INVOICE SERVIS &amp; PRICELIST</span>
-                        <h4 id="prev-bengkel" class="font-extrabold text-base text-slate-900 mt-1">Jamal Motor Sport</h4>
-                        <p id="prev-sub" class="text-[11px] text-slate-500">Pro Performance Workshop</p>
-                        <p id="prev-alamat" class="text-[10px] text-slate-500 mt-0.5"></p>
+                        <h5 id="prev-bengkel" class="font-extrabold text-sm text-slate-900">Jamal Motor Sport</h5>
+                        <p id="prev-alamat" class="text-[11px] text-slate-500 max-w-xs">Jl. Jabal Mina Raya No.18, Kelapa Dua, Kab. Tangerang</p>
                       </div>
                     </div>
-                    <div class="text-right shrink-0">
-                      <span class="text-[10px] font-bold text-slate-400 uppercase">NOMOR INVOICE</span>
-                      <div id="prev-no" class="font-extrabold text-xs text-slate-900">INV-JMS-001</div>
-                      <div id="prev-tgl" class="text-[11px] text-slate-500 mt-0.5">Tanggal: -</div>
+                    <div class="text-right text-xs">
+                      <p class="font-extrabold text-red-600">INVOICE SERVIS</p>
+                      <p id="prev-no" class="font-bold text-slate-800">INV-JMS-0000</p>
+                      <p id="prev-tgl" class="text-slate-500 text-[11px]">-</p>
                     </div>
                   </div>
 
-                  <div class="grid grid-cols-2 gap-3 text-[11px] bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div>
-                      <span class="text-[10px] font-bold text-red-600 uppercase">DATA PELANGGAN</span>
-                      <div id="prev-nama" class="font-bold text-slate-900 mt-0.5">-</div>
-                      <div id="prev-wa" class="text-slate-600">WA: -</div>
-                      <div id="prev-mekanik" class="text-slate-600">Mekanik: Mas Jamal</div>
+                      <p><span class="text-slate-500">Pelanggan:</span> <strong id="prev-nama">-</strong></p>
+                      <p><span class="text-slate-500">No. WA:</span> <span id="prev-wa">-</span></p>
                     </div>
-                    <div class="text-right">
-                      <span class="text-[10px] font-bold text-red-600 uppercase">UNIT MOBIL</span>
-                      <div id="prev-mobil" class="font-bold text-slate-900 mt-0.5">-</div>
-                      <div id="prev-plat" class="text-slate-600">No. Plat: -</div>
-                      <div id="prev-km" class="text-slate-600">Kilometers: -</div>
+                    <div>
+                      <p><span class="text-slate-500">Kendaraan:</span> <strong id="prev-mobil">-</strong></p>
+                      <p><span class="text-slate-500">No. Plat / KM:</span> <span id="prev-plat-km">-</span></p>
                     </div>
                   </div>
 
-                  <table class="w-full text-[11px] border-collapse">
+                  <table class="w-full text-xs border-collapse">
                     <thead>
                       <tr class="bg-slate-900 text-white">
-                        <th class="text-left py-1.5 px-2.5 rounded-tl-lg">Deskripsi Layanan / Item</th>
+                        <th class="text-left py-1.5 px-2">Item / Jasa</th>
                         <th class="text-center py-1.5 px-2">Qty</th>
-                        <th class="text-right py-1.5 px-2.5">Harga</th>
-                        <th class="text-right py-1.5 px-2.5 rounded-tr-lg">Jumlah</th>
+                        <th class="text-right py-1.5 px-2">Harga</th>
+                        <th class="text-right py-1.5 px-2">Subtotal</th>
                       </tr>
                     </thead>
                     <tbody id="prev-items-body" class="divide-y divide-slate-200"></tbody>
                   </table>
 
-                  <div class="flex justify-between items-start pt-2 border-t border-slate-200 text-[11px]">
-                    <div class="max-w-[55%] text-slate-500">
-                      <div id="prev-catatan" class="italic"></div>
-                      <p class="mt-1.5 text-[10px]">Terima kasih telah mempercayakan perawatan mobil Anda di JMS.</p>
-                    </div>
-                    <div class="text-right space-y-1">
-                      <div class="text-slate-600">Subtotal: <strong id="prev-subtotal">Rp 0</strong></div>
-                      <div class="text-slate-600">Diskon: <strong id="prev-diskon">- Rp 0</strong></div>
-                      <div class="text-xs font-extrabold text-red-600 pt-1 border-t border-slate-200">
-                        TOTAL TAGIHAN: <span id="prev-total">Rp 0</span>
-                      </div>
-                    </div>
+                  <div class="flex justify-end border-t border-slate-300 pt-2 text-sm font-extrabold text-slate-900">
+                    <span>Total Tagihan: <span id="prev-total" class="text-red-600">Rp 0</span></span>
                   </div>
-                </div>
-
-                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5">
-                  <div class="text-xs font-extrabold text-slate-700">Kirim Pelanggan &amp; Simpan ke Google Drive</div>
-                  <button type="button" id="inv-gen-pdf-and-wa" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Generate &amp; Unduh Lampiran PDF + Kirim WA Pelanggan</button>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <button type="button" id="inv-save-drive" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Simpan ke Google Drive</button>
-                    <button type="button" id="inv-download-pdf" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow">Cetak / Download PDF Invoice</button>
-                  </div>
-                  <p id="inv-drive-status" class="text-xs text-slate-600"></p>
-                </div>
-
-                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-extrabold text-slate-800">Riwayat Invoice</span>
-                    <button type="button" id="inv-clear-history" class="text-[11px] text-red-600 hover:underline">Bersihkan Log</button>
-                  </div>
-                  <div id="inv-history-list" class="space-y-1.5 max-h-40 overflow-y-auto text-xs"></div>
                 </div>
               </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+              <h4 class="font-extrabold text-slate-900 text-base">Riwayat Invoice Tersimpan di Perangkat Ini</h4>
+              <div id="inv-history-list" class="space-y-2 max-h-48 overflow-y-auto text-xs"></div>
             </div>
           </div>
 
           <!-- TAB 4 -->
           <div id="tab-4" class="jms-tab-pane hidden">
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-2xl space-y-4">
-              <h4 class="font-extrabold text-slate-900 text-base">Sinkronisasi Langsung ke Google Sheets</h4>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Semua perubahan Layanan, Galeri, Profil Bengkel, dan PIN Admin disimpan ke Google Sheets dan otomatis terbaca di semua perangkat/pengunjung.
-              </p>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-3xl space-y-4">
+              <h4 class="font-extrabold text-slate-900 text-base">Sinkronisasi &amp; Backup Google Sheets</h4>
+              <p class="text-xs text-slate-600">Paksa sinkronisasi ulang data profil, pricelist, galeri, dan sisa slot antrian dari Google Sheets ke tampilan web.</p>
               <div class="flex flex-wrap gap-3">
-                <button type="button" id="cms-push-sheets" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">Push Semua Perubahan ke Google Sheets</button>
-                <button type="button" id="cms-pull-sheets" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow">Ambil Data Terbaru dari Google Sheets</button>
+                <button type="button" id="sync-pull-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs">Muat Ulang dari Google Sheets</button>
+                <button type="button" id="sync-push-btn" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs">Simpan Semua State ke Google Sheets</button>
               </div>
+              <p id="sync-status-msg" class="text-xs text-slate-600 font-semibold"></p>
             </div>
           </div>
         </div>
@@ -788,101 +751,124 @@
     `;
     document.body.appendChild(modal);
 
-    function syncLogoutButton() {
-      const lockBtn = document.getElementById("cms-lock-btn");
-      if (!lockBtn) return;
-      if (isLoggedIn()) {
-        lockBtn.classList.remove("hidden");
-      } else {
-        lockBtn.classList.add("hidden");
-        if (!modal.classList.contains("hidden")) {
-          document.getElementById("jms-cms-login").classList.remove("hidden");
-          document.getElementById("jms-cms-editor").classList.add("hidden");
-        }
-      }
+    const loginBox = document.getElementById("jms-cms-login");
+    const editorBox = document.getElementById("jms-cms-editor");
+    const pinInput = document.getElementById("jms-cms-pin");
+    const errMsg = document.getElementById("jms-cms-err");
+    const lockBtn = document.getElementById("cms-lock-btn");
+
+    function showLoginView() {
+      loginBox.classList.remove("hidden");
+      editorBox.classList.add("hidden");
+      lockBtn.classList.add("hidden");
+      pinInput.value = "";
+      errMsg.classList.add("hidden");
     }
 
-    setInterval(syncLogoutButton, 15000);
-
-    modal.querySelectorAll(".jms-tab-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (!isLoggedIn()) {
-          refreshConsoleAuth();
-          return;
-        }
-        modal.querySelectorAll(".jms-tab-btn").forEach((b) => {
-          b.className = "jms-tab-btn bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm";
-        });
-        btn.className = "jms-tab-btn bg-red-600 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow-sm";
-        const target = btn.getAttribute("data-tab");
-        modal.querySelectorAll(".jms-tab-pane").forEach((p) => p.classList.add("hidden"));
-        document.getElementById(target).classList.remove("hidden");
-      });
-    });
-
-    async function openModal() {
-      modal.classList.remove("hidden");
-      modal.classList.add("flex");
-      if (!isLoggedIn() && getGasUrl()) {
-        await loadCmsFromSheets();
-      }
-      refreshConsoleAuth();
-    }
-
-    function refreshConsoleAuth() {
-      const lBox = document.getElementById("jms-cms-login");
-      const eBox = document.getElementById("jms-cms-editor");
-      if (isLoggedIn()) {
-        lBox.classList.add("hidden");
-        eBox.classList.remove("hidden");
-        syncLogoutButton();
-        hydrateAllTabs();
-      } else {
-        lBox.classList.remove("hidden");
-        eBox.classList.add("hidden");
-        syncLogoutButton();
-      }
-    }
-
-    function hydrateAllTabs() {
-      renderAdminPricelist();
-      renderAdminGaleri();
+    function showEditorView() {
+      loginBox.classList.add("hidden");
+      editorBox.classList.remove("hidden");
+      lockBtn.classList.remove("hidden");
       fillProfileForm();
-      initInvoiceBuilder();
+      renderServicesList();
+      renderGaleriAdminList();
+      renderInvoicePriceSelect();
+      renderInvoicePreview();
       renderInvoiceHistory();
     }
 
-    function renderAdminPricelist() {
-      document.getElementById("srv-count").textContent = stateData.layanan.length;
-      const list = document.getElementById("srv-active-list");
-      list.innerHTML = stateData.layanan
+    function openModal() {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      if (isLoggedIn()) {
+        showEditorView();
+      } else {
+        showLoginView();
+        setTimeout(() => pinInput.focus(), 50);
+      }
+    }
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      clearAdminSession();
+      showLoginView();
+    }
+
+    trigger.addEventListener("click", openModal);
+    document.getElementById("jms-cms-close").addEventListener("click", closeModal);
+    lockBtn.addEventListener("click", () => {
+      clearAdminSession();
+      showLoginView();
+    });
+
+    document.getElementById("jms-cms-enter").addEventListener("click", () => {
+      if (pinInput.value.trim() === getPin()) {
+        startAdminSession();
+        showEditorView();
+      } else {
+        errMsg.classList.remove("hidden");
+      }
+    });
+
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("jms-cms-enter").click();
+      }
+    });
+
+    document.querySelectorAll(".jms-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetId = btn.getAttribute("data-tab");
+        document.querySelectorAll(".jms-tab-btn").forEach((b) => {
+          b.className = "jms-tab-btn bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm";
+        });
+        btn.className = "jms-tab-btn bg-red-600 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow-sm";
+        document.querySelectorAll(".jms-tab-pane").forEach((pane) => pane.classList.add("hidden"));
+        document.getElementById(targetId).classList.remove("hidden");
+      });
+    });
+
+    function resetServiceForm() {
+      editingServiceIdx = -1;
+      document.getElementById("srv-form-title").textContent = "Tambah Item Layanan / Pricelist";
+      document.getElementById("srv-kode").value = "";
+      document.getElementById("srv-durasi").value = "";
+      document.getElementById("srv-kategori").value = "";
+      document.getElementById("srv-nama").value = "";
+      document.getElementById("srv-nominal").value = "";
+      document.getElementById("srv-deskripsi").value = "";
+    }
+
+    function renderServicesList() {
+      const listEl = document.getElementById("srv-active-list");
+      const countEl = document.getElementById("srv-count");
+      const items = stateData.layanan || [];
+      countEl.textContent = items.length;
+      listEl.innerHTML = items
         .map(
           (item, idx) => `
-          <div class="bg-white border border-slate-200 rounded-xl p-3.5 flex items-start justify-between gap-3">
+          <div class="bg-white border border-slate-200 rounded-xl p-3 flex items-start justify-between gap-2">
             <div>
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] font-extrabold uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded">${esc(item.kode)}</span>
-                <span class="text-[10px] font-bold text-slate-500">${esc(item.kategori || "")}</span>
-              </div>
-              <div class="font-bold text-sm text-slate-900 mt-1">${esc(item.nama)}</div>
-              <div class="text-xs font-extrabold text-red-600">${window.formatRupiahIdr(item.nominal)} <span class="text-slate-400 font-normal">• ${esc(item.durasi || "")}</span></div>
-              <p class="text-xs text-slate-500 mt-1">${esc(item.deskripsi || "")}</p>
+              <p class="text-xs font-extrabold text-slate-900">[${esc(item.kode)}] ${esc(item.nama)}</p>
+              <p class="text-[11px] text-slate-500">${esc(item.kategori)} • ${esc(item.durasi)} • <strong class="text-red-600">${esc(item.harga)}</strong></p>
+              <p class="text-[11px] text-slate-600 mt-0.5">${esc(item.deskripsi)}</p>
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button type="button" data-edit-srv="${idx}" class="bg-slate-900 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">Edit</button>
-              <button type="button" data-del-srv="${idx}" class="bg-red-100 hover:bg-red-600 text-red-700 hover:text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">Hapus</button>
+            <div class="flex gap-1.5 shrink-0">
+              <button type="button" data-edit-srv="${idx}" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">Edit</button>
+              <button type="button" data-del-srv="${idx}" class="bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-bold px-2.5 py-1 rounded-lg">Hapus</button>
             </div>
           </div>
         `
         )
         .join("");
 
-      list.querySelectorAll("[data-edit-srv]").forEach((b) => {
-        b.addEventListener("click", () => {
-          const idx = Number(b.getAttribute("data-edit-srv"));
-          const it = stateData.layanan[idx];
+      listEl.querySelectorAll("[data-edit-srv]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const i = Number(btn.getAttribute("data-edit-srv"));
+          const it = stateData.layanan[i];
           if (!it) return;
-          editingServiceIdx = idx;
+          editingServiceIdx = i;
           document.getElementById("srv-form-title").textContent = "Edit Item Layanan / Pricelist";
           document.getElementById("srv-kode").value = it.kode || "";
           document.getElementById("srv-durasi").value = it.durasi || "";
@@ -893,96 +879,85 @@
         });
       });
 
-      list.querySelectorAll("[data-del-srv]").forEach((b) => {
-        b.addEventListener("click", async () => {
-          stateData.layanan.splice(Number(b.getAttribute("data-del-srv")), 1);
-          renderAdminPricelist();
-          populateInvoicePricelistDropdown();
+      listEl.querySelectorAll("[data-del-srv]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const i = Number(btn.getAttribute("data-del-srv"));
+          stateData.layanan.splice(i, 1);
+          renderServicesList();
+          renderInvoicePriceSelect();
           await saveCmsToSheets();
         });
       });
     }
 
-    function resetServiceForm() {
-      editingServiceIdx = -1;
-      document.getElementById("srv-form-title").textContent = "Tambah Item Layanan / Pricelist";
-      document.getElementById("srv-kode").value = `SRV-0${stateData.layanan.length + 1}`;
-      document.getElementById("srv-durasi").value = "";
-      document.getElementById("srv-kategori").value = "";
-      document.getElementById("srv-nama").value = "";
-      document.getElementById("srv-nominal").value = "";
-      document.getElementById("srv-deskripsi").value = "";
-    }
-
     document.getElementById("srv-reset-form").addEventListener("click", resetServiceForm);
     document.getElementById("srv-save-btn").addEventListener("click", async () => {
-      const kode = document.getElementById("srv-kode").value.trim() || `SRV-0${stateData.layanan.length + 1}`;
+      const kode = document.getElementById("srv-kode").value.trim();
       const durasi = document.getElementById("srv-durasi").value.trim() || "60 Menit";
       const kategori = document.getElementById("srv-kategori").value.trim() || "Servis Mobil";
       const nama = document.getElementById("srv-nama").value.trim();
       const nominal = Number(document.getElementById("srv-nominal").value || 0);
       const deskripsi = document.getElementById("srv-deskripsi").value.trim();
 
-      if (!nama) {
-        alert("Nama layanan wajib diisi.");
+      if (!kode || !nama) {
+        alert("Kode dan Nama Layanan wajib diisi.");
         return;
       }
 
-      const payload = {
+      const entry = {
         kode,
         kategori,
         durasi,
         nama,
         nominal,
-        harga: `IDR ${(isNaN(nominal) ? 0 : nominal).toLocaleString("id-ID")}`,
+        harga: `IDR ${nominal.toLocaleString("id-ID")}`,
         deskripsi
       };
 
       if (editingServiceIdx >= 0) {
-        stateData.layanan[editingServiceIdx] = payload;
+        stateData.layanan[editingServiceIdx] = entry;
       } else {
-        stateData.layanan.push(payload);
+        stateData.layanan.push(entry);
       }
 
       resetServiceForm();
-      renderAdminPricelist();
-      populateInvoicePricelistDropdown();
+      renderServicesList();
+      renderInvoicePriceSelect();
       const ok = await saveCmsToSheets();
-      if (ok) alert("Pricelist tersimpan ke Google Sheets & tampil untuk semua pengunjung.");
+      if (ok) alert("Item layanan tersimpan.");
     });
 
     document.getElementById("srv-restore-default").addEventListener("click", async () => {
       await loadCmsFromSheets();
-      hydrateAllTabs();
-      alert("Data diperbarui dari Google Sheets.");
+      renderServicesList();
+      renderInvoicePriceSelect();
     });
 
-    function renderAdminGaleri() {
-      document.getElementById("gal-count").textContent = stateData.galeri.length;
+    function renderGaleriAdminList() {
       const wrap = document.getElementById("gal-admin-list");
-      wrap.innerHTML = stateData.galeri
+      const countEl = document.getElementById("gal-count");
+      const items = stateData.galeri || [];
+      countEl.textContent = items.length;
+      wrap.innerHTML = items
         .map(
           (g, idx) => `
           <div class="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col justify-between">
-            <div>
-              <img src="${esc(normalizeImageSrc(g.gambar))}" alt="${esc(g.judul)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${FALLBACK_IMG_SRC}';" class="w-full h-32 object-cover bg-slate-100">
-              <div class="p-3">
-                <div class="font-bold text-xs text-slate-900">${esc(g.judul)}</div>
-                <p class="text-[11px] text-slate-500 mt-0.5">${esc(g.keterangan || "")}</p>
-              </div>
-            </div>
-            <div class="px-3 pb-3">
-              <button type="button" data-del-gal="${idx}" class="w-full bg-red-100 hover:bg-red-600 text-red-700 hover:text-white text-xs font-bold py-1.5 rounded-lg">Hapus Foto</button>
+            <img src="${esc(normalizeImageSrc(g.gambar))}" alt="${esc(g.judul)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${FALLBACK_IMG_SRC}';" class="w-full h-32 object-cover bg-slate-100">
+            <div class="p-3 space-y-1">
+              <p class="text-xs font-extrabold text-slate-900">${esc(g.judul)}</p>
+              <p class="text-[11px] text-slate-500">${esc(g.keterangan)}</p>
+              <button type="button" data-del-gal="${idx}" class="mt-2 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-bold px-2.5 py-1 rounded-lg">Hapus</button>
             </div>
           </div>
         `
         )
         .join("");
 
-      wrap.querySelectorAll("[data-del-gal]").forEach((b) => {
-        b.addEventListener("click", async () => {
-          stateData.galeri.splice(Number(b.getAttribute("data-del-gal")), 1);
-          renderAdminGaleri();
+      wrap.querySelectorAll("[data-del-gal]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const idx = Number(btn.getAttribute("data-del-gal"));
+          stateData.galeri.splice(idx, 1);
+          renderGaleriAdminList();
           renderGaleri();
           await saveCmsToSheets();
         });
@@ -990,45 +965,37 @@
     }
 
     document.getElementById("gal-file").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
+      const file = e.target.files && e.target.files[0];
       const statusEl = document.getElementById("gal-upload-status");
-      const urlInput = document.getElementById("gal-url");
-      pendingGalleryUpload = null;
-      if (!file) return;
-
-      if (file.size > MAX_DRIVE_UPLOAD_BYTES) {
-        alert("Ukuran file melebihi batas maksimal 2 MB. Silakan pilih foto yang lebih kecil.");
-        e.target.value = "";
-        statusEl.textContent = "Ditolak: ukuran file melebihi 2 MB.";
+      if (!file) {
+        pendingGalleryUpload = null;
         return;
       }
-
-      statusEl.textContent = "⏳ Mengompres & mengonversi ukuran gambar ke .jpg...";
       try {
-        const compressed = await compressImageFile(file, 900, 0.75);
-        const baseName = file.name.replace(/\.[^.]+$/, "") || "galeri-jms";
+        statusEl.textContent = "Mengompresi gambar ke .jpg...";
+        const compressed = await compressImageFile(file, 1280, 0.82);
+        if (compressed.approxBytes > MAX_DRIVE_UPLOAD_BYTES) {
+          statusEl.textContent = "Ukuran gambar tetap melebihi 2 MB setelah kompresi.";
+          pendingGalleryUpload = null;
+          return;
+        }
         pendingGalleryUpload = {
-          fileName: `${baseName}.jpg`,
-          mimeType: "image/jpeg",
+          fileName: file.name,
+          mimeType: compressed.mimeType,
           imageBase64: compressed.base64
         };
-        urlInput.value = `drive://${baseName}.jpg`;
-        statusEl.textContent = `✅ Auto-convert siap (~${Math.round(compressed.approxBytes / 1024)} KB). Klik '+ Tambah Foto'.`;
-      } catch (err) {
-        statusEl.textContent = "⚠️ Gagal memproses gambar: " + err.message;
+        statusEl.textContent = `Siap upload (${Math.round(compressed.approxBytes / 1024)} KB). Klik '+ Tambah Foto'.`;
+      } catch (_) {
+        statusEl.textContent = "Gagal memproses file gambar.";
+        pendingGalleryUpload = null;
       }
     });
 
     document.getElementById("gal-add-btn").addEventListener("click", async () => {
-      const judulInput = document.getElementById("gal-judul");
-      const ketInput = document.getElementById("gal-ket");
-      const urlInput = document.getElementById("gal-url");
-      const fileInput = document.getElementById("gal-file");
+      const judul = document.getElementById("gal-judul").value.trim();
+      const keterangan = document.getElementById("gal-ket").value.trim();
+      let gambar = document.getElementById("gal-url").value.trim();
       const statusEl = document.getElementById("gal-upload-status");
-
-      const judul = judulInput.value.trim();
-      const keterangan = ketInput.value.trim();
-      let gambar = urlInput.value.trim();
 
       if (!judul) {
         alert("Judul foto wajib diisi.");
@@ -1036,462 +1003,308 @@
       }
 
       if (pendingGalleryUpload) {
-        statusEl.textContent = "⏳ Menyimpan file .jpg ke Google Drive (JMS/galeri)...";
-        const driveUrl = await uploadGalleryImageToDrive(pendingGalleryUpload);
-        if (driveUrl) {
-          gambar = driveUrl;
-        } else if (!gambar || gambar.startsWith("drive://")) {
-          gambar = `images/${pendingGalleryUpload.fileName}`;
+        statusEl.textContent = "Mengunggah ke Google Drive (JMS/galeri)...";
+        const uploadedUrl = await uploadGalleryImageToDrive(pendingGalleryUpload);
+        if (uploadedUrl) {
+          gambar = uploadedUrl;
+          document.getElementById("gal-url").value = uploadedUrl;
+          statusEl.textContent = "Berhasil diunggah ke Google Drive.";
+        } else {
+          statusEl.textContent = "Terkirim ke Drive (cek link di sheet CMS_Galeri jika belum muncul).";
         }
+        pendingGalleryUpload = null;
       }
 
-      gambar = normalizeImageSrc(gambar);
-      if (!gambar) {
-        alert("Pilih file gambar atau isi URL foto terlebih dahulu.");
-        return;
-      }
-
+      if (!gambar) gambar = FALLBACK_IMG_SRC;
       stateData.galeri.push({ judul, keterangan, gambar });
-      pendingGalleryUpload = null;
-      judulInput.value = "";
-      ketInput.value = "";
-      urlInput.value = "";
-      fileInput.value = "";
-      statusEl.textContent = "";
+      document.getElementById("gal-judul").value = "";
+      document.getElementById("gal-ket").value = "";
+      document.getElementById("gal-url").value = "";
+      document.getElementById("gal-file").value = "";
 
-      renderAdminGaleri();
+      renderGaleriAdminList();
       renderGaleri();
-
-      const ok = await saveCmsToSheets();
-      if (ok) {
-        alert("Foto tersimpan ke Google Drive & link-nya masuk ke CMS_Galeri.");
-      }
+      await saveCmsToSheets();
     });
 
     document.getElementById("gal-save-btn").addEventListener("click", async () => {
-      stateData.galeri = stateData.galeri.map((g) => ({
-        judul: g.judul,
-        keterangan: g.keterangan,
-        gambar: normalizeImageSrc(g.gambar)
-      }));
-      renderAdminGaleri();
-      renderGaleri();
       const ok = await saveCmsToSheets();
-      if (ok) {
-        alert("Perubahan galeri tersimpan ke Google Sheets.");
-      }
+      if (ok) alert("Galeri tersimpan ke Google Sheets.");
     });
 
     function fillProfileForm() {
-      const m = stateData.meta;
+      const m = stateData.meta || {};
       document.getElementById("prof-nama").value = m.namaBengkel || "";
-      document.getElementById("prof-wa").value = m.whatsapp || "";
+      document.getElementById("prof-wa").value = m.whatsapp || DEFAULT_WA_NUMBER;
       document.getElementById("prof-sub").value = m.subBrand || "";
       document.getElementById("prof-telp").value = m.telepon || "";
       document.getElementById("prof-tagline").value = m.heroTagline || "";
       document.getElementById("prof-hero-desc").value = m.heroDeskripsi || "";
       document.getElementById("prof-alamat").value = m.alamat || "";
-      document.getElementById("prof-jam").value = Array.isArray(m.jamOperasional) ? m.jamOperasional.join(", ") : "";
+      document.getElementById("prof-jam").value = Array.isArray(m.jamOperasional)
+        ? m.jamOperasional.join(", ")
+        : m.jamOperasional || "";
       document.getElementById("prof-gas").value = getGasUrl();
+      document.getElementById("prof-pin").value = "";
     }
 
     document.getElementById("prof-save-btn").addEventListener("click", async () => {
-      const gasInput = document.getElementById("prof-gas").value.trim();
-      setGasUrl(gasInput);
-
-      stateData.meta.namaBengkel = document.getElementById("prof-nama").value.trim();
-      stateData.meta.whatsapp = document.getElementById("prof-wa").value.trim();
+      if (!stateData.meta) stateData.meta = {};
+      stateData.meta.namaBengkel = document.getElementById("prof-nama").value.trim() || "Jamal Motor Sport";
+      stateData.meta.whatsapp = document.getElementById("prof-wa").value.trim() || DEFAULT_WA_NUMBER;
       stateData.meta.subBrand = document.getElementById("prof-sub").value.trim();
       stateData.meta.telepon = document.getElementById("prof-telp").value.trim();
       stateData.meta.heroTagline = document.getElementById("prof-tagline").value.trim();
       stateData.meta.heroDeskripsi = document.getElementById("prof-hero-desc").value.trim();
       stateData.meta.alamat = document.getElementById("prof-alamat").value.trim();
-      stateData.meta.jamOperasional = document
-        .getElementById("prof-jam")
-        .value.split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const jamRaw = document.getElementById("prof-jam").value.trim();
+      stateData.meta.jamOperasional = jamRaw ? jamRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
+      const newGas = document.getElementById("prof-gas").value.trim();
+      setGasUrl(newGas);
 
       const newPin = document.getElementById("prof-pin").value.trim();
       if (newPin) {
-        if (newPin.length < 4) {
-          alert("PIN minimal 4 karakter.");
-          return;
-        }
         syncPinToSheetsMeta(newPin);
         document.getElementById("prof-pin").value = "";
-      } else {
-        syncPinToSheetsMeta(getPin());
       }
 
       const ok = await saveCmsToSheets();
-      updateInvoicePreview();
-      if (ok) {
-        alert("Profil & PIN Admin tersimpan ke Google Sheets dan otomatis sinkron lintas perangkat.");
-      }
+      if (ok) alert("Profil, WhatsApp & PIN tersimpan ke Google Sheets.");
     });
 
-    function populateInvoicePricelistDropdown() {
-      const sel = document.getElementById("inv-pricelist-select");
-      sel.innerHTML = stateData.layanan
-        .map(
-          (item, idx) =>
-            `<option value="${idx}">${esc(item.nama)} — ${window.formatRupiahIdr(item.nominal)}</option>`
-        )
+    function renderInvoicePriceSelect() {
+      const sel = document.getElementById("inv-price-select");
+      if (!sel) return;
+      const items = stateData.layanan || [];
+      sel.innerHTML = items
+        .map((it, i) => `<option value="${i}">${esc(it.kode)} - ${esc(it.nama)} (${esc(it.harga)})</option>`)
         .join("");
     }
 
-    function initInvoiceBuilder() {
-      if (!document.getElementById("inv-no").value) {
-        document.getElementById("inv-no").value = generateInvoiceNumber();
-      }
-      if (!document.getElementById("inv-tgl").value) {
-        document.getElementById("inv-tgl").value = new Date().toISOString().slice(0, 10);
-      }
-      if (!invoiceItems.length && stateData.layanan.length) {
-        const first = stateData.layanan[0];
-        invoiceItems = [{ nama: first.nama, qty: 1, harga: first.nominal }];
-      }
-      populateInvoicePricelistDropdown();
-      renderInvoiceItemsEditor();
-      updateInvoicePreview();
-    }
-
-    function renderInvoiceItemsEditor() {
-      const wrap = document.getElementById("inv-items-editor");
-      wrap.innerHTML = invoiceItems
-        .map(
-          (it, idx) => `
-          <div class="grid grid-cols-12 gap-2 items-center">
-            <input type="text" data-inv-idx="${idx}" data-inv-key="nama" value="${esc(it.nama)}" class="col-span-5 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
-            <input type="number" min="1" data-inv-idx="${idx}" data-inv-key="qty" value="${it.qty}" class="col-span-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-center">
-            <input type="number" min="0" data-inv-idx="${idx}" data-inv-key="harga" value="${it.harga}" class="col-span-3 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-xs">
-            <button type="button" data-inv-del="${idx}" class="col-span-2 bg-red-100 hover:bg-red-600 text-red-700 hover:text-white font-bold py-1.5 rounded-lg text-xs">✕</button>
-          </div>
-        `
-        )
-        .join("");
-
-      wrap.querySelectorAll("input[data-inv-idx]").forEach((inp) => {
-        inp.addEventListener("input", () => {
-          const idx = Number(inp.getAttribute("data-inv-idx"));
-          const key = inp.getAttribute("data-inv-key");
-          if (key === "nama") invoiceItems[idx].nama = inp.value;
-          else invoiceItems[idx][key] = Number(inp.value || 0);
-          updateInvoicePreview();
-        });
-      });
-
-      wrap.querySelectorAll("[data-inv-del]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          invoiceItems.splice(Number(btn.getAttribute("data-inv-del")), 1);
-          renderInvoiceItemsEditor();
-          updateInvoicePreview();
-        });
-      });
-    }
-
-    function calcInvoiceTotals() {
-      const subtotal = invoiceItems.reduce((sum, it) => sum + Number(it.qty || 0) * Number(it.harga || 0), 0);
-      const diskon = Number(document.getElementById("inv-diskon").value || 0);
-      const total = Math.max(0, subtotal - diskon);
-      return { subtotal, diskon, total };
-    }
-
-    function updateInvoicePreview() {
-      const m = stateData.meta;
-      document.getElementById("prev-bengkel").textContent = m.namaBengkel || "Jamal Motor Sport";
-      document.getElementById("prev-sub").textContent = m.subBrand || "Pro Performance Workshop";
-      document.getElementById("prev-alamat").textContent = m.alamat || "";
-
-      const noInv = document.getElementById("inv-no").value.trim() || "-";
-      const tgl = document.getElementById("inv-tgl").value || "-";
+    function renderInvoicePreview() {
+      const m = stateData.meta || {};
+      const noInv = document.getElementById("inv-no").value.trim() || generateInvoiceNumber();
+      const tgl = document.getElementById("inv-tgl").value || new Date().toISOString().slice(0, 10);
       const nama = document.getElementById("inv-nama").value.trim() || "-";
       const wa = document.getElementById("inv-wa").value.trim() || "-";
       const mobil = document.getElementById("inv-mobil").value.trim() || "-";
       const plat = document.getElementById("inv-plat").value.trim() || "-";
       const km = document.getElementById("inv-km").value.trim() || "-";
-      const mekanik = document.getElementById("inv-mekanik").value.trim() || "Mas Jamal";
-      const catatan = document.getElementById("inv-catatan").value.trim();
 
+      document.getElementById("prev-bengkel").textContent = m.namaBengkel || "Jamal Motor Sport";
+      document.getElementById("prev-alamat").textContent = String(m.alamat || "").replace(/^📍\s*/, "");
       document.getElementById("prev-no").textContent = noInv;
-      document.getElementById("prev-tgl").textContent = `Tanggal: ${tgl}`;
+      document.getElementById("prev-tgl").textContent = tgl;
       document.getElementById("prev-nama").textContent = nama;
-      document.getElementById("prev-wa").textContent = `WA: ${wa}`;
-      document.getElementById("prev-mekanik").textContent = `Mekanik: ${mekanik}`;
+      document.getElementById("prev-wa").textContent = wa;
       document.getElementById("prev-mobil").textContent = mobil;
-      document.getElementById("prev-plat").textContent = `No. Plat: ${plat}`;
-      document.getElementById("prev-km").textContent = `Kilometers: ${km}`;
-      document.getElementById("prev-catatan").textContent = catatan ? `Catatan: ${catatan}` : "";
+      document.getElementById("prev-plat-km").textContent = `${plat} / ${km}`;
 
       const tbody = document.getElementById("prev-items-body");
+      const listEl = document.getElementById("inv-items-list");
+      let total = 0;
+
       tbody.innerHTML = invoiceItems
         .map((it) => {
-          const jumlah = Number(it.qty || 0) * Number(it.harga || 0);
+          const sub = Number(it.qty || 1) * Number(it.harga || 0);
+          total += sub;
           return `
             <tr>
-              <td class="py-1.5 px-2.5">${esc(it.nama)}</td>
-              <td class="py-1.5 px-2 text-center">${it.qty}</td>
-              <td class="py-1.5 px-2.5 text-right">${window.formatRupiahIdr(it.harga)}</td>
-              <td class="py-1.5 px-2.5 text-right font-bold">${window.formatRupiahIdr(jumlah)}</td>
+              <td class="py-1.5 px-2">${esc(it.nama)}</td>
+              <td class="py-1.5 px-2 text-center">${Number(it.qty || 1)}</td>
+              <td class="py-1.5 px-2 text-right">Rp ${Number(it.harga || 0).toLocaleString("id-ID")}</td>
+              <td class="py-1.5 px-2 text-right font-semibold">Rp ${sub.toLocaleString("id-ID")}</td>
             </tr>
           `;
         })
         .join("");
 
-      const { subtotal, diskon, total } = calcInvoiceTotals();
-      document.getElementById("prev-subtotal").textContent = window.formatRupiahIdr(subtotal);
-      document.getElementById("prev-diskon").textContent = `- ${window.formatRupiahIdr(diskon)}`;
-      document.getElementById("prev-total").textContent = window.formatRupiahIdr(total);
+      listEl.innerHTML = invoiceItems
+        .map(
+          (it, idx) => `
+          <div class="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-1.5">
+            <span><strong>${esc(it.nama)}</strong> (x${it.qty}) - Rp ${(it.qty * it.harga).toLocaleString("id-ID")}</span>
+            <button type="button" data-rm-inv="${idx}" class="text-red-600 font-bold text-xs">✕</button>
+          </div>
+        `
+        )
+        .join("");
+
+      listEl.querySelectorAll("[data-rm-inv]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          invoiceItems.splice(Number(btn.getAttribute("data-rm-inv")), 1);
+          renderInvoicePreview();
+        });
+      });
+
+      document.getElementById("prev-total").textContent = `Rp ${total.toLocaleString("id-ID")}`;
+      return total;
     }
 
-    ["inv-no", "inv-tgl", "inv-nama", "inv-wa", "inv-mobil", "inv-plat", "inv-km", "inv-mekanik", "inv-diskon", "inv-catatan"].forEach((id) => {
-      document.getElementById(id).addEventListener("input", updateInvoicePreview);
+    document.getElementById("inv-no").value = generateInvoiceNumber();
+    document.getElementById("inv-tgl").value = new Date().toISOString().slice(0, 10);
+
+    ["inv-no", "inv-tgl", "inv-nama", "inv-wa", "inv-mobil", "inv-plat", "inv-km"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", renderInvoicePreview);
     });
 
     document.getElementById("inv-new-no").addEventListener("click", () => {
       document.getElementById("inv-no").value = generateInvoiceNumber();
-      updateInvoicePreview();
+      renderInvoicePreview();
     });
 
-    document.getElementById("inv-add-from-pricelist").addEventListener("click", () => {
-      const idx = Number(document.getElementById("inv-pricelist-select").value);
-      const item = stateData.layanan[idx];
+    document.getElementById("inv-add-price-btn").addEventListener("click", () => {
+      const idx = Number(document.getElementById("inv-price-select").value);
+      const item = (stateData.layanan || [])[idx];
       if (!item) return;
-      invoiceItems.push({ nama: item.nama, qty: 1, harga: item.nominal });
-      renderInvoiceItemsEditor();
-      updateInvoicePreview();
+      invoiceItems.push({ nama: item.nama, qty: 1, harga: Number(item.nominal || 0) });
+      renderInvoicePreview();
     });
 
-    document.getElementById("inv-add-custom").addEventListener("click", () => {
-      invoiceItems.push({ nama: "Item / Jasa Tambahan", qty: 1, harga: 0 });
-      renderInvoiceItemsEditor();
-      updateInvoicePreview();
+    document.getElementById("inv-add-custom-btn").addEventListener("click", () => {
+      const nama = document.getElementById("inv-custom-nama").value.trim();
+      const qty = Math.max(1, Number(document.getElementById("inv-custom-qty").value || 1));
+      const harga = Math.max(0, Number(document.getElementById("inv-custom-harga").value || 0));
+      if (!nama) return;
+      invoiceItems.push({ nama, qty, harga });
+      document.getElementById("inv-custom-nama").value = "";
+      document.getElementById("inv-custom-qty").value = "1";
+      document.getElementById("inv-custom-harga").value = "";
+      renderInvoicePreview();
     });
-
-    function recordInvoiceLog(driveUrl) {
-      const { total } = calcInvoiceTotals();
-      const noInv = document.getElementById("inv-no").value.trim();
-      const nowMs = Date.now();
-      const hist = getHistory();
-
-      const top = hist[0];
-      if (
-        top &&
-        top.noInvoice === noInv &&
-        Number(top.total) === Number(total) &&
-        nowMs - Number(top._ts || 0) < 5000
-      ) {
-        if (driveUrl && !top.driveUrl) {
-          top.driveUrl = driveUrl;
-          saveHistory(hist);
-          renderInvoiceHistory();
-        }
-        return;
-      }
-
-      const entry = {
-        _ts: nowMs,
-        noInvoice: noInv,
-        tanggal: document.getElementById("inv-tgl").value,
-        pelanggan: document.getElementById("inv-nama").value.trim() || "Pelanggan",
-        mobil: document.getElementById("inv-mobil").value.trim(),
-        plat: document.getElementById("inv-plat").value.trim(),
-        total,
-        driveUrl: driveUrl || ""
-      };
-      hist.unshift(entry);
-      saveHistory(hist.slice(0, 50));
-      renderInvoiceHistory();
-    }
 
     function renderInvoiceHistory() {
       const wrap = document.getElementById("inv-history-list");
-      const hist = getHistory();
-      if (!hist.length) {
-        wrap.innerHTML = `<div class="text-slate-400">Belum ada riwayat invoice tersimpan.</div>`;
+      const list = getHistory();
+      if (!list.length) {
+        wrap.innerHTML = `<p class="text-slate-400">Belum ada riwayat invoice.</p>`;
         return;
       }
-      wrap.innerHTML = hist
+      wrap.innerHTML = list
+        .slice()
+        .reverse()
         .map(
           (h) => `
-          <div class="bg-white border border-slate-200 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+          <div class="bg-white border border-slate-200 rounded-lg p-2.5 flex items-center justify-between gap-2">
             <div>
-              <span class="font-bold text-slate-900">${esc(h.noInvoice)}</span> • ${esc(h.pelanggan)} (${esc(h.plat || h.mobil || "-")})
-              <div class="text-[11px] text-slate-500">${esc(h.tanggal)} • <strong>${window.formatRupiahIdr(h.total)}</strong></div>
+              <strong>${esc(h.noInvoice)}</strong> • ${esc(h.pelanggan)} (${esc(h.kendaraan)}) — <span class="text-red-600 font-bold">Rp ${Number(h.total || 0).toLocaleString("id-ID")}</span>
             </div>
-            ${h.driveUrl ? `<a href="${esc(h.driveUrl)}" target="_blank" class="text-[11px] font-bold text-blue-600 hover:underline">Buka PDF Drive ↗</a>` : `<span class="text-[10px] text-slate-400">Tersimpan Lokal</span>`}
+            ${h.fileUrl ? `<a href="${esc(h.fileUrl)}" target="_blank" class="text-blue-600 font-bold underline shrink-0">Buka PDF</a>` : ""}
           </div>
         `
         )
         .join("");
     }
 
-    document.getElementById("inv-clear-history").addEventListener("click", () => {
-      localStorage.removeItem(HISTORY_KEY);
-      renderInvoiceHistory();
+    document.getElementById("inv-download-pdf-btn").addEventListener("click", async () => {
+      if (!window.html2pdf) {
+        alert("Library html2pdf belum termuat.");
+        return;
+      }
+      const noInv = document.getElementById("inv-no").value.trim() || "INV-JMS";
+      const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
+      const rendered = await renderPdfWorker(`${noInv} - ${nama}.pdf`);
+      if (!rendered) return;
+      await rendered.worker.save();
+      if (rendered.host && rendered.host.parentNode) rendered.host.parentNode.removeChild(rendered.host);
     });
 
-    function buildCustomerInvoiceWaMessage() {
-      const namaPelanggan = document.getElementById("inv-nama").value.trim() || "Pelanggan";
-      const noInv = document.getElementById("inv-no").value.trim() || generateInvoiceNumber();
-
-      return [
-        `Halo ${namaPelanggan}`,
-        ``,
-        `Terima kasih telah memilih Jamal Motor Sport (JMS) sebagai bengkel kepercayaan anda.`,
-        `Berikut Lampiran Invoice yang kami lampirkan ke anda.`,
-        ``,
-        `Nomor Invoice`,
-        `#${noInv}`,
-        ``,
-        `Tips:`,
-        `-   Gunakan metode Pembayaran Instan (Virtual Account dan Transfer).`,
-        `-   Anda wajib melakukan konfirmasi melalui wa.link/jp3ufp apabila menggunakan Metode Pembayaran Manual.`,
-        `-  Berikut No. Rekening 8831665246 BCA a.n Damaris Butar Butar`,
-        ``,
-        `Salam JMS,`,
-        `Terima Kasih`
-      ].join("\n");
-    }
-
-    document.getElementById("inv-gen-pdf-and-wa").addEventListener("click", async () => {
-      const waTarget = String(document.getElementById("inv-wa").value || "").replace(/\D/g, "");
-      if (!waTarget) {
-        alert("Masukkan No. WA Pelanggan terlebih dahulu (contoh: 62812...).");
+    document.getElementById("inv-save-pdf-drive-btn").addEventListener("click", async () => {
+      const endpoint = getGasUrl();
+      if (!endpoint) {
+        alert("URL Web App Google Apps Script belum diatur.");
+        return;
+      }
+      if (!window.html2pdf) {
+        alert("Library html2pdf belum termuat.");
         return;
       }
 
-      const noInv = document.getElementById("inv-no").value.trim() || "INV-JMS";
-      const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
-      const filename = `${noInv} - ${nama}.pdf`;
+      const total = renderInvoicePreview();
+      const noInvoice = document.getElementById("inv-no").value.trim() || generateInvoiceNumber();
+      const tanggal = document.getElementById("inv-tgl").value;
+      const pelanggan = document.getElementById("inv-nama").value.trim() || "Pelanggan";
+      const waPelanggan = document.getElementById("inv-wa").value.trim() || "-";
+      const kendaraan = document.getElementById("inv-mobil").value.trim() || "-";
+      const nopol = document.getElementById("inv-plat").value.trim() || "-";
 
-      if (window.html2pdf) {
-        const built = await renderPdfWorker(filename);
-        if (built) {
-          await built.worker.save();
-          if (built.host && built.host.parentNode) built.host.parentNode.removeChild(built.host);
-        }
-      } else {
-        window.print();
-      }
-
-      recordInvoiceLog("");
-      const pesan = buildCustomerInvoiceWaMessage();
-      window.open(`https://wa.me/${waTarget}?text=${encodeURIComponent(pesan)}`, "_blank");
-    });
-
-    document.getElementById("inv-download-pdf").addEventListener("click", async () => {
-      const noInv = document.getElementById("inv-no").value.trim() || "INV-JMS";
-      const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
-      const filename = `${noInv} - ${nama}.pdf`;
-
-      if (window.html2pdf) {
-        const built = await renderPdfWorker(filename);
-        if (built) {
-          await built.worker.save();
-          if (built.host && built.host.parentNode) built.host.parentNode.removeChild(built.host);
-          recordInvoiceLog("");
-        }
-      } else {
-        window.print();
-      }
-    });
-
-    document.getElementById("inv-save-drive").addEventListener("click", async () => {
-      const gasUrl = getGasUrl();
-      const statusEl = document.getElementById("inv-drive-status");
-      if (!gasUrl) {
-        alert("Isi terlebih dahulu 'URL Web App Google Apps Script' di Tab 2 (Profil Bengkel & WA).");
-        return;
-      }
-
-      statusEl.textContent = "⏳ Sedang membuat PDF penuh & mengirim ke Google Drive (folder JMS)...";
-      const noInv = document.getElementById("inv-no").value.trim() || "INV-JMS";
-      const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
-      const { total } = calcInvoiceTotals();
+      const rendered = await renderPdfWorker(`${noInvoice} - ${pelanggan}.pdf`);
+      if (!rendered) return;
 
       let pdfBase64 = "";
-      if (window.html2pdf) {
-        const built = await renderPdfWorker(`${noInv} - ${nama}.pdf`);
-        if (built) {
-          const dataUri = await built.worker.outputPdf("datauristring");
-          if (built.host && built.host.parentNode) built.host.parentNode.removeChild(built.host);
-          pdfBase64 = dataUri.split(",")[1] || "";
-        }
+      try {
+        const dataUri = await rendered.worker.outputPdf("datauristring");
+        pdfBase64 = String(dataUri || "").split(",")[1] || "";
+      } finally {
+        if (rendered.host && rendered.host.parentNode) rendered.host.parentNode.removeChild(rendered.host);
       }
 
       try {
-        await fetch(gasUrl, {
+        await fetch(endpoint, {
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({
             action: "save_invoice_pdf",
-            noInvoice: noInv,
-            tanggal: document.getElementById("inv-tgl").value,
-            pelanggan: nama,
-            waPelanggan: document.getElementById("inv-wa").value.trim(),
-            kendaraan: document.getElementById("inv-mobil").value.trim(),
-            nopol: document.getElementById("inv-plat").value.trim(),
-            total: total,
-            pdfBase64: pdfBase64
+            noInvoice,
+            tanggal,
+            pelanggan,
+            waPelanggan,
+            kendaraan,
+            nopol,
+            total,
+            pdfBase64
           })
         });
 
-        recordInvoiceLog("");
-        statusEl.innerHTML = `✅ Permintaan simpan PDF terkirim ke Google Apps Script (cek folder <strong>JMS</strong> di Google Drive &amp; tab <strong>Riwayat Invoice</strong> di Spreadsheet).`;
+        const hist = getHistory();
+        hist.push({ noInvoice, tanggal, pelanggan, waPelanggan, kendaraan, nopol, total, fileUrl: "" });
+        saveHistory(hist);
+        renderInvoiceHistory();
+        alert("Invoice dikirim untuk disimpan ke Google Drive & Riwayat Invoice.");
       } catch (err) {
-        statusEl.textContent = `⚠️ Gagal mengirim ke Apps Script: ${err.message}`;
+        alert("Gagal menyimpan invoice: " + err.message);
       }
     });
 
-    document.getElementById("cms-push-sheets").addEventListener("click", async () => {
-      const ok = await saveCmsToSheets();
-      if (ok) alert("Semua data CMS (termasuk PIN) berhasil dikirim ke Google Sheets.");
+    document.getElementById("inv-send-wa-btn").addEventListener("click", () => {
+      const total = renderInvoicePreview();
+      const targetWa = String(document.getElementById("inv-wa").value || "").replace(/\D/g, "");
+      if (!targetWa) {
+        alert("Isi Nomor WA Pelanggan terlebih dahulu.");
+        return;
+      }
+      const noInv = document.getElementById("inv-no").value.trim();
+      const nama = document.getElementById("inv-nama").value.trim() || "Pelanggan";
+      const mobil = document.getElementById("inv-mobil").value.trim() || "-";
+      const text = `Halo *${nama}*, berikut rincian Invoice *${noInv}* dari *${stateData.meta.namaBengkel}* untuk kendaraan *${mobil}* dengan total *Rp ${total.toLocaleString("id-ID")}*. Terima kasih.`;
+      window.open(`https://wa.me/${targetWa}?text=${encodeURIComponent(text)}`, "_blank");
     });
 
-    document.getElementById("cms-pull-sheets").addEventListener("click", async () => {
+    document.getElementById("sync-pull-btn").addEventListener("click", async () => {
+      const msgEl = document.getElementById("sync-status-msg");
+      msgEl.textContent = "Memuat data dari Google Sheets...";
       await loadCmsFromSheets();
-      hydrateAllTabs();
-      alert("Data & PIN terbaru berhasil dimuat dari Google Sheets.");
+      fillProfileForm();
+      renderServicesList();
+      renderGaleriAdminList();
+      renderInvoicePriceSelect();
+      msgEl.textContent = "Data berhasil diperbarui dari Google Sheets.";
     });
 
-    trigger.addEventListener("click", openModal);
-    document.getElementById("jms-cms-close").addEventListener("click", () => {
-      clearAdminSession();
-      modal.classList.add("hidden");
-      modal.classList.remove("flex");
-      refreshConsoleAuth();
+    document.getElementById("sync-push-btn").addEventListener("click", async () => {
+      const msgEl = document.getElementById("sync-status-msg");
+      msgEl.textContent = "Menyimpan state ke Google Sheets...";
+      const ok = await saveCmsToSheets();
+      msgEl.textContent = ok ? "Semua data tersimpan ke Google Sheets." : "Gagal menyimpan.";
     });
-    document.getElementById("cms-lock-btn").addEventListener("click", () => {
-      clearAdminSession();
-      refreshConsoleAuth();
-    });
-    document.getElementById("jms-cms-enter").addEventListener("click", () => {
-      const val = document.getElementById("jms-cms-pin").value.trim();
-      const err = document.getElementById("jms-cms-err");
-      if (val === getPin()) {
-        startAdminSession();
-        err.classList.add("hidden");
-        document.getElementById("jms-cms-pin").value = "";
-        refreshConsoleAuth();
-      } else {
-        err.classList.remove("hidden");
-      }
-    });
-    document.getElementById("jms-cms-pin").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") document.getElementById("jms-cms-enter").click();
-    });
-
-    if (new URLSearchParams(window.location.search).get("admin") === "1") {
-      openModal();
-    }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    loadCmsFromSheets();
+    renderPage();
     bindForm();
     initAdmin();
+    loadCmsFromSheets();
   });
 })();
